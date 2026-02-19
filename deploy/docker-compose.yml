@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: anomaly_detection
+      POSTGRES_USER: adf_user
+      POSTGRES_PASSWORD: adf_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - adf-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # UI
+      - "14268:14268"  # HTTP collector
+      - "6831:6831/udp"  # Agent
+    networks:
+      - adf-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - adf-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - adf-network
+
+  coordinator:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.coordinator
+    ports:
+      - "50052:50052"
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - jaeger
+    environment:
+      DATABASE_HOST: postgres
+      JAEGER_HOST: jaeger
+    networks:
+      - adf-network
+
+  edge-detector-1:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.edge
+    environment:
+      SERVICE_NAME: service-1
+      COORDINATOR_HOST: coordinator
+    depends_on:
+      - coordinator
+    networks:
+      - adf-network
+
+  edge-detector-2:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.edge
+    environment:
+      SERVICE_NAME: service-2
+      COORDINATOR_HOST: coordinator
+    depends_on:
+      - coordinator
+    networks:
+      - adf-network
+
+  edge-detector-3:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.edge
+    environment:
+      SERVICE_NAME: service-3
+      COORDINATOR_HOST: coordinator
+    depends_on:
+      - coordinator
+    networks:
+      - adf-network
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  adf-network:
+    driver: bridge

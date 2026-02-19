@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: adf-edge-detector
+  namespace: anomaly-detection
+  labels:
+    app: adf-edge-detector
+spec:
+  selector:
+    matchLabels:
+      app: adf-edge-detector
+  template:
+    metadata:
+      labels:
+        app: adf-edge-detector
+    spec:
+      containers:
+      - name: edge-detector
+        image: adf-edge:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SERVICE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: COORDINATOR_HOST
+          value: "adf-coordinator"
+        - name: COORDINATOR_PORT
+          value: "50052"
+        ports:
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: adf-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adf-edge-detector
+  namespace: anomaly-detection
+spec:
+  selector:
+    app: adf-edge-detector
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP

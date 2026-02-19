@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adf-coordinator
+  namespace: anomaly-detection
+  labels:
+    app: adf-coordinator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: adf-coordinator
+  template:
+    metadata:
+      labels:
+        app: adf-coordinator
+    spec:
+      containers:
+      - name: coordinator
+        image: adf-coordinator:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DATABASE_HOST
+          value: "postgres"
+        - name: JAEGER_HOST
+          value: "jaeger"
+        ports:
+        - name: grpc
+          containerPort: 50052
+          protocol: TCP
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: adf-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adf-coordinator
+  namespace: anomaly-detection
+spec:
+  selector:
+    app: adf-coordinator
+  ports:
+  - name: grpc
+    port: 50052
+    targetPort: 50052
+  - name: api
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adf-coordinator-external
+  namespace: anomaly-detection
+spec:
+  selector:
+    app: adf-coordinator
+  ports:
+  - name: api
+    port: 8080
+    targetPort: 8080
+  type: LoadBalancer
