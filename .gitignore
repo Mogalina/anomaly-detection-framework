@@ -97,14 +97,15 @@ temp/
 *.tmp
 
 # LaTeX
-.aux
-.log
-.out
-.bbl
-.blg
-.bcf
-.run.xml
-.synctex.gz
-.synctex.gz(busy)
-.toc
-.lof
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.bcf
+*.lot
+*.run.xml
+*.synctex.gz
+*.synctex.gz(busy)
+*.toc
+*.lof
