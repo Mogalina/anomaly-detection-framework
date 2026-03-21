@@ -1,6 +1,3 @@
-"""
-Edge detector main entry point.
-"""
 import argparse
 import sys
 import time
@@ -95,8 +92,8 @@ def main():
     metrics.start()
     logger.info("Metrics server started on port 9090")
 
-    # Main detection loop: collect CPU, Memory, Disk, Network and feed detector
-    logger.info("Entering detection loop (collecting CPU, Memory, Disk, Network)...")
+    # Main loop for metrics collection and anomaly detection
+    logger.info("Entering detection loop...")
 
     try:
         while True:
