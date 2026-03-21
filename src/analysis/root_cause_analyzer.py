@@ -200,7 +200,7 @@ class RootCauseAnalyzer:
                 personalization[node] = self.personalization_weight
             else:
                 personalization[node] = (1 - self.personalization_weight) / \
-                                       (self.causal_graph.graph.number_of_nodes() - len(root_causes))
+                                        (self.causal_graph.graph.number_of_nodes() - len(root_causes))
         
         try:
             # Compute PageRank
@@ -275,11 +275,14 @@ class RootCauseAnalyzer:
         if is_root_cause:
             # Explain as root cause
             root_cause_info = next(rc for rc in root_causes if rc['service'] == service)
+
+            # Confidence based on combined score (0-1)
+            confidence = min(1.0, root_cause_info.get('combined_score', 0))
             
             return {
                 'type': 'root_cause',
                 'service': service,
-                'confidence': 0.9,
+                'confidence': confidence,
                 'message': (
                     f"{service} is identified as a root cause affecting "
                     f"{root_cause_info.get('affected_services', 0)} downstream services"
@@ -330,14 +333,22 @@ class RootCauseAnalyzer:
                 'path_length': best_path['path_length'],
                 'alternative_paths': len(propagation_paths) - 1
             }
-        
+
+        upstream_services = self.causal_graph.get_upstream_services(service, max_hops=2)
+
+        # Estimate confidence from graph structure
+        num_upstream = len(upstream_services)
+
+        # If many upstream services exist, uncertainty increases
+        confidence = max(0.1, min(0.5, 1 / (num_upstream + 1)))
+
         # No clear propagation path found
         return {
             'type': 'unknown',
             'service': service,
-            'confidence': 0.3,
+            'confidence': confidence,
             'message': f"Anomaly in {service} detected but propagation source unclear",
-            'upstream_services': list(self.causal_graph.get_upstream_services(service, max_hops=2))
+            'upstream_services': list(upstream_services)
         }
     
     def explain_cascade(self, initial_service: str) -> Dict:
@@ -440,7 +451,7 @@ class RootCauseAnalyzer:
         )
         
         avg_analysis_time = sum(
-            analysis['analysis_time']
+            analysis['analysis_time'] 
             for analysis in self.analysis_history
         ) / total_analyses
         
