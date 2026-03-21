@@ -1,5 +1,3 @@
-# Anomaly Detection Framework Configuration
-
 # Edge Detector Configuration
 edge:
   model:
@@ -32,22 +30,48 @@ federated:
   coordinator:
     host: "0.0.0.0"
     port: 50051
+    max_workers: 10
     num_rounds: 100
     min_clients_per_round: 3
     fraction_fit: 0.8
     fraction_evaluate: 0.5
     aggregation_strategy: "fedavg"
     staleness_tolerance: 2
-  
+
+    # Fault tolerance
+    round_timeout_seconds: 120 # max seconds to wait for client updates per round
+    checkpoint_dir: "checkpoints/" # directory for global model .pt checkpoints
+
   client:
     epochs_per_round: 5
     batch_size: 64
     learning_rate: 0.001
     optimizer: "adam"
+
+    # Fault tolerance / reconnect
+    max_retries: 10 # max connection attempts with exponential backoff
+    retry_delay_seconds: 5 # base delay in seconds (doubles each retry)
+    local_db_path: "~/.adf/" # database directory
+
     gradient_compression:
       enabled: true
       method: "topk"
       compression_ratio: 0.1
+    
+    payload_compression:
+      enabled: true
+
+      algorithms:
+        - lz4
+        - zstd
+      
+      cpu_usage_percent:
+        high_cpu_threshold: 85.0
+        moderate_cpu_threshold: 60.0
+      
+      zstd_level:
+        moderate: 1
+        idle: 3
     
     differential_privacy:
       enabled: false
@@ -162,6 +186,13 @@ database:
     pool_size: 10
     max_overflow: 20
 
+  # Redis ephemeral buffer for in-flight Federated Learning round updates
+  # Falls back to in-memory dictionary gracefully if Redis is unavailable
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+
 # Monitoring Configuration
 monitoring:
   prometheus:
@@ -200,7 +231,7 @@ experiments:
     cpu_stress_percentage: 80
     memory_stress_mb: 512
     failure_rate: 0.1
-  
+
   benchmark:
     num_trials: 10
     warm_up_time: 60

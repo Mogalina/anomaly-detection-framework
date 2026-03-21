@@ -11,6 +11,9 @@ pysyft==0.8.0
 # Distributed System & Communication
 grpcio==1.59.0
 grpcio-tools==1.59.0
+protobuf==4.25.0
+lz4==4.3.2
+zstandard==0.22.0
 jaeger-client==4.8.0
 py-zipkin==1.2.0
 
@@ -21,6 +24,7 @@ python-igraph==0.10.6
 # Database
 psycopg2-binary==2.9.7
 sqlalchemy==2.0.21
+redis==5.0.1
 
 # Monitoring & Metrics
 prometheus-client==0.17.1
@@ -32,7 +36,7 @@ opentelemetry-instrumentation==0.41b0
 pyyaml==6.0.1
 python-dotenv==1.0.0
 
-# System metrics (CPU, Memory, Disk, Network) for edge/FL
+# System metrics for edge nodes
 psutil==5.9.6
 
 # Utilities
