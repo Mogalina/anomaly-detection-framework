@@ -1,10 +1,3 @@
-"""
-System metrics collector for edge nodes.
-
-Collects CPU, Memory, Disk, and Network metrics from the local node
-for anomaly detection and root cause analysis. Used by edge detectors
-and federated learning clients to report node-level resource usage.
-"""
 from typing import Dict, List, Optional, Any
 import time
 
@@ -12,7 +5,7 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Fixed order of system metric keys for consistent vector representation
+# Order of system metric keys for consistent vector representation
 SYSTEM_METRIC_KEYS = [
     "cpu_usage_percent",
     "cpu_load1",
