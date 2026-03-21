@@ -20,13 +20,17 @@ COPY src/ ./src/
 COPY config/ ./config/
 
 # Set Python path
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
-# Create logs directory
-RUN mkdir -p logs
+# Create logs and checkpoints directories
+RUN mkdir -p logs checkpoints
 
 # Expose gRPC port and API port
-EXPOSE 50052 8080
+EXPOSE 50051 8080
+
+# Health check via gRPC ping
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import grpc; ch=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=5)" || exit 1
 
 # Run coordinator
-CMD ["python", "-m", "coordinator.main"]
+CMD ["python", "-m", "federated.run_coordinator"]

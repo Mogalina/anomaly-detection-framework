@@ -19,7 +19,10 @@ COPY src/ ./src/
 COPY config/ ./config/
 
 # Set Python path
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
+
+# Standard profile can persist updates to local database
+ENV NODE_PROFILE=standard
 
 # Create logs directory
 RUN mkdir -p logs
@@ -27,5 +30,5 @@ RUN mkdir -p logs
 # Expose metrics port
 EXPOSE 9090
 
-# Run edge detector
-CMD ["python", "-m", "edge.main"]
+# Run edge node entrypoint
+CMD ["python", "-m", "federated.run_node"]

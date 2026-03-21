@@ -1,0 +1,29 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Minimal system dependencies (no database client needed)
+RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
+
+# Install only the lightweight requirements
+COPY requirements-edge-lightweight.txt .
+RUN pip install --no-cache-dir -r requirements-edge-lightweight.txt
+
+# Copy source and config
+COPY src/ ./src/
+COPY config/ ./config/
+
+# Python path
+ENV PYTHONPATH=/app/src
+
+# Lightweight profile (no local writes)
+ENV NODE_PROFILE=lightweight
+
+# Create logs dir
+RUN mkdir -p logs
+
+# Expose metrics port (optional)
+EXPOSE 9090
+
+# Run standalone edge node entrypoint
+CMD ["python", "-m", "federated.run_node"]

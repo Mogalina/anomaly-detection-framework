@@ -13,6 +13,25 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - adf-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adf_user -d anomaly_detection"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - adf-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   jaeger:
     image: jaegertracing/all-in-one:latest
@@ -49,57 +68,94 @@ services:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.coordinator
     ports:
-      - "50052:50052"
+      - "50051:50051"
       - "8080:8080"
     depends_on:
-      - postgres
-      - jaeger
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
     environment:
-      DATABASE_HOST: postgres
+      COORDINATOR_HOST: "0.0.0.0"
+      COORDINATOR_PORT: "50051"
+      DATABASE_URL: "postgresql://adf_user:adf_password@postgres:5432/anomaly_detection"
+      REDIS_URL: "redis://redis:6379/0"
       JAEGER_HOST: jaeger
+      PYTHONPATH: /app/src
+    volumes:
+      - coordinator_checkpoints:/app/checkpoints
     networks:
       - adf-network
+    restart: unless-stopped
+    healthcheck:
+      test: >
+        python -c "import grpc; ch=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=5)"
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
 
   edge-detector-1:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.edge
     environment:
+      CLIENT_ID: edge-1
       SERVICE_NAME: service-1
       COORDINATOR_HOST: coordinator
+      COORDINATOR_PORT: "50051"
+      NODE_PROFILE: standard
+      PYTHONPATH: /app/src
     depends_on:
-      - coordinator
+      coordinator:
+        condition: service_healthy
     networks:
       - adf-network
+    restart: unless-stopped
 
   edge-detector-2:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.edge
     environment:
+      CLIENT_ID: edge-2
       SERVICE_NAME: service-2
       COORDINATOR_HOST: coordinator
+      COORDINATOR_PORT: "50051"
+      NODE_PROFILE: standard
+      PYTHONPATH: /app/src
     depends_on:
-      - coordinator
+      coordinator:
+        condition: service_healthy
     networks:
       - adf-network
+    restart: unless-stopped
 
   edge-detector-3:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.edge
     environment:
+      CLIENT_ID: edge-3
       SERVICE_NAME: service-3
       COORDINATOR_HOST: coordinator
+      COORDINATOR_PORT: "50051"
+      NODE_PROFILE: standard
+      PYTHONPATH: /app/src
     depends_on:
-      - coordinator
+      coordinator:
+        condition: service_healthy
     networks:
       - adf-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  coordinator_checkpoints:
 
 networks:
   adf-network:
