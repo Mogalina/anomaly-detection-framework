@@ -1,8 +1,4 @@
-"""
-Coordinator service main entry point.
-"""
 import argparse
-import sys
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 

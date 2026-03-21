@@ -1,11 +1,7 @@
-import grpc
-from concurrent import futures
 import time
 from typing import Dict, Set, Optional
-from collections import defaultdict
 
 from edge.edge_detector import EdgeDetector
-from federated.federated_coordinator import FederatedCoordinator
 from tracing.trace_collector import TraceCollector
 from tracing.causal_graph import CausalGraph
 from analysis.root_cause_analyzer import RootCauseAnalyzer
