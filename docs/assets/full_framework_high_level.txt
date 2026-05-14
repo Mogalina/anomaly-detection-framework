@@ -1,0 +1,52 @@
+```mermaid
+flowchart TD
+    %% Global styling
+    classDef edge fill:#f9f2ec,stroke:#d9b38c,stroke-width:2px;
+    classDef central fill:#e6f2ff,stroke:#99ccff,stroke-width:2px;
+    classDef fl fill:#e6ffe6,stroke:#99ff99,stroke-width:2px;
+
+    %% Components
+    subgraph EdgeLayer ["Edge Layer (Microservices)"]
+        Node1["Edge Node 1<br>(LSTM-AE Detector)"]
+        Node2["Edge Node 2<br>(LSTM-AE Detector)"]
+        NodeN["Edge Node N<br>(LSTM-AE Detector)"]
+    end
+
+    subgraph FLLayer ["Federated Learning Layer"]
+        FLC["Federated Coordinator<br>(FedAvg + DP)"]
+    end
+
+    subgraph CentralLayer ["Central Control Plane"]
+        RCA["Root Cause Analyzer<br>(Causal Graph)"]
+        RL["Threshold Optimizer<br>(Q-Learning)"]
+        Prom["Telemetry & Dashboards<br>(Prometheus/Grafana)"]
+    end
+
+    %% Edge to FL Flow (Gradients)
+    Node1 -- "Encrypted Gradients" --> FLC
+    Node2 -- "Encrypted Gradients" --> FLC
+    NodeN -- "Encrypted Gradients" --> FLC
+    
+    FLC -. "Global Weights" .-> Node1
+    FLC -. "Global Weights" .-> Node2
+    FLC -. "Global Weights" .-> NodeN
+
+    %% Edge to Central Flow (Alerts)
+    Node1 ==>|"Anomaly Alert (Latency Spike)"| RCA
+    Node2 ==>|"Anomaly Alert"| RCA
+    NodeN ==>|"Anomaly Alert"| RCA
+
+    %% Internal Central Flow
+    RCA -->|"Root Cause Ranked"| Prom
+    RCA -->|"Trigger Tuning"| RL
+    RL -. "New Dynamic Threshold" .-> Node1
+    
+    %% Telemetry to Dashboards
+    Node1 -->|"Metrics Scraping"| Prom
+    Node2 -->|"Metrics Scraping"| Prom
+    NodeN -->|"Metrics Scraping"| Prom
+
+    class Node1,Node2,NodeN edge;
+    class FLC fl;
+    class RCA,RL,Prom central;
+```

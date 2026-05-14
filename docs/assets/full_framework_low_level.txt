@@ -1,0 +1,64 @@
+```mermaid
+flowchart TD
+    %% Styling
+    classDef edge fill:#fefefe,stroke:#999,stroke-width:2px;
+    classDef db fill:#f0e6ff,stroke:#8000ff,stroke-width:2px;
+    classDef compute fill:#e6f9ff,stroke:#00bfff,stroke-width:2px;
+
+    subgraph Cluster ["Microservice Cluster Environment"]
+        subgraph EdgeClient ["Edge Node (e.g., ts-route-service)"]
+            SysMet[System Metrics Collector<br>(psutil)]
+            PreProc[Preprocessing Pipeline<br>(MinMax, Smoothing)]
+            LSTM[LSTM-Autoencoder Inference]
+            DP[DP-SGD Noise Engine]
+            LocalDB[(SQLite Local State)]
+            
+            SysMet --> PreProc
+            PreProc --> LSTM
+            LSTM -->|MSE > Threshold| AnomalyAlert[Anomaly Event Emitter]
+            LSTM --> DP
+            DP -->|Encrypted Gradients| LocalDB
+        end
+    end
+
+    subgraph FedServer ["Federated Coordinator Server"]
+        RPC[gRPC Communication Layer]
+        PoisonDetect[Gradient Poisoning Detector<br>(Autoencoder-based)]
+        Aggregator[FedAvg Aggregation Engine]
+        GlobalDB[(PostgreSQL Global State)]
+        
+        RPC --> PoisonDetect
+        PoisonDetect -->|Valid| Aggregator
+        Aggregator --> GlobalDB
+        GlobalDB -->|New Global Weights| RPC
+    end
+
+    subgraph CentralEngine ["Central Observability Engine"]
+        TraceCol[Jaeger Trace Collector]
+        GraphBuild[Dynamic Causal Graph Builder]
+        Pagerank[PageRank RCA Algorithm]
+        RLAgent[Q-Learning Threshold Tuner]
+        
+        PromServer[(Prometheus TSDB)]
+        Grafana[Grafana Dashboards]
+    end
+
+    %% Data flows
+    LocalDB -- "gRPC Upload" --> RPC
+    RPC -- "gRPC Download" --> LSTM
+    
+    AnomalyAlert -- "HTTP Trigger" --> TraceCol
+    TraceCol --> GraphBuild
+    GraphBuild --> Pagerank
+    Pagerank --> RLAgent
+    RLAgent -- "Dynamic Threshold Update" --> LSTM
+
+    SysMet -- "/metrics scrape" --> PromServer
+    Pagerank -- "RCA Probabilities" --> PromServer
+    Aggregator -- "Global Loss/Rounds" --> PromServer
+    PromServer --> Grafana
+
+    class EdgeClient,FedServer,CentralEngine edge;
+    class LocalDB,GlobalDB,PromServer db;
+    class LSTM,Aggregator,Pagerank,RLAgent compute;
+```

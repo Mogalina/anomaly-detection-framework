@@ -1,25 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────────────
-# ADF Edge Node — EC2 User-Data Bootstrap
-# ──────────────────────────────────────────────────────────────
-
 exec > /var/log/adf-bootstrap.log 2>&1
-echo "=== ADF Edge Node bootstrap started at $(date -u) ==="
+echo "Anomaly Detection Framework: Edge Node bootstrap started at $(date -u)"
 
-# ── Install Docker ───────────────────────────────────────────
+# ─── Install Docker ───
 dnf update -y -q
 dnf install -y docker aws-cli
 systemctl enable docker
 systemctl start docker
 usermod -aG docker ec2-user
 
-# ── Authenticate to ECR (cross-region pull from primary) ─────
+# ─── Authenticate to ECR (cross-region pull from primary) ───
 aws ecr get-login-password --region ${ecr_region} \
   | docker login --username AWS --password-stdin ${ecr_registry}
 
-# ── Pull edge image (with retry) ─────────────────────────────
+# ─── Pull edge image (with retry) ───
 MAX_RETRIES=5
 for i in $(seq 1 $MAX_RETRIES); do
   echo "Pull attempt $i/$MAX_RETRIES..."
@@ -37,7 +33,7 @@ for i in $(seq 1 $MAX_RETRIES); do
     | docker login --username AWS --password-stdin ${ecr_registry}
 done
 
-# ── Run edge container ──────────────────────────────────────
+# ─── Run edge container ───
 docker run -d \
   --name adf-edge \
   --restart unless-stopped \
@@ -50,5 +46,4 @@ docker run -d \
   -v /opt/adf/logs:/app/logs \
   ${ecr_edge_url}:latest
 
-echo "=== ADF Edge Node (${client_id}, ${node_profile}) bootstrap completed at $(date -u) ==="
-# Force update 1
+echo "Anomaly Detection Framework: Edge Node (${client_id}, ${node_profile}) bootstrap completed at $(date -u)"

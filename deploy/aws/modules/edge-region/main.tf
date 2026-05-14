@@ -1,10 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# Edge Region Module — EC2 Instances
-# ──────────────────────────────────────────────────────────────
-# Deploys standard and lightweight edge nodes in a given region.
-# Each region gets its own security group and AMI lookup.
-# ──────────────────────────────────────────────────────────────
-
 terraform {
   required_providers {
     aws = {
@@ -13,7 +6,7 @@ terraform {
   }
 }
 
-# ── AMI lookup ───────────────────────────────────────────────
+# ─── AMI lookup ───
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -35,13 +28,13 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# ── Default VPC ──────────────────────────────────────────────
+# ─── Default VPC ───
 
 data "aws_vpc" "default" {
   default = true
 }
 
-# ── Security Group ───────────────────────────────────────────
+# ─── Security Group ───
 
 resource "aws_security_group" "edge" {
   name_prefix = "${var.project_prefix}-edge-"
@@ -76,7 +69,7 @@ resource "aws_security_group" "edge" {
   }
 }
 
-# ── IAM Role (same as primary — needed per-region) ──────────
+# ─── IAM Role ───
 
 resource "aws_iam_role" "ec2_ecr" {
   name = "${var.project_prefix}-ec2-ecr-${var.region}"
@@ -109,7 +102,7 @@ resource "aws_iam_instance_profile" "ec2_ecr" {
   role = aws_iam_role.ec2_ecr.name
 }
 
-# ── SSH Key Pair (import public key from primary region) ────
+# ─── SSH Key Pair (import public key from primary region) ───
 
 resource "aws_key_pair" "deployer" {
   key_name   = "${var.project_prefix}-deployer"
@@ -120,13 +113,13 @@ resource "aws_key_pair" "deployer" {
   }
 }
 
-# ── ECR registry URL (from primary region) ──────────────────
+# ─── ECR registry URL (from primary region) ───
 
 locals {
   ecr_registry = split("/", var.ecr_edge_url)[0]
 }
 
-# ── Standard Edge Nodes ─────────────────────────────────────
+# ─── Standard Edge Nodes ───
 
 resource "aws_instance" "edge_standard" {
   count = var.edge_count_standard
@@ -159,7 +152,7 @@ resource "aws_instance" "edge_standard" {
   }
 }
 
-# ── Lightweight Edge Nodes ──────────────────────────────────
+# ─── Lightweight Edge Nodes ───
 
 resource "aws_instance" "edge_lightweight" {
   count = var.edge_count_lightweight

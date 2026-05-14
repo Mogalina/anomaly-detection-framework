@@ -1,7 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# Edge Region Module — Outputs
-# ──────────────────────────────────────────────────────────────
-
 output "edge_standard_public_ips" {
   description = "Public IPs of standard-profile edge nodes in this region"
   value       = aws_instance.edge_standard[*].public_ip

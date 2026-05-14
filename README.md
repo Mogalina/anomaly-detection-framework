@@ -114,7 +114,7 @@ python3 prometheus_exporter.py
 If you utilize this framework or findings in your research, please cite the manuscript:
 
 ```bibtex
-@mastersthesis{moghioros2026federated,
+@bachelorsthesis{moghioros2026federated,
   author  = {Moghioroș, Eric},
   title   = {A Privacy-Preserving, Federated Anomaly Detection Framework for Distributed Microservice Architectures},
   school  = {Babeș-Bolyai University of Cluj-Napoca},

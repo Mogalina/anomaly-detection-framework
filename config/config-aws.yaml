@@ -1,11 +1,4 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — AWS Multi-Region Configuration Overlay
-# ──────────────────────────────────────────────────────────────
-# Tuned for t3.micro instances across 4 AWS regions with
-# varying WAN latency (same-region to ~150ms cross-continent).
-# ──────────────────────────────────────────────────────────────
-
-# Edge Detector Configuration
+# Edge detector configuration
 edge:
   model:
     type: "lstm"
@@ -32,7 +25,7 @@ edge:
     stride: 1
     sampling_rate: 1.0
 
-# Federated Learning Configuration — AWS Tuned
+# Federated learning configuration
 federated:
   coordinator:
     host: "0.0.0.0"
@@ -43,10 +36,10 @@ federated:
     fraction_fit: 0.8
     fraction_evaluate: 0.5
     aggregation_strategy: "fedavg"
-    staleness_tolerance: 3            # Increased from 2: cross-region delays
+    staleness_tolerance: 3
 
-    # Fault tolerance — relaxed for WAN
-    round_timeout_seconds: 300        # Increased from 120: WAN latency across regions
+    # Fault tolerance for wide area networks
+    round_timeout_seconds: 300
     checkpoint_dir: "checkpoints/"
 
   client:
@@ -55,9 +48,9 @@ federated:
     learning_rate: 0.001
     optimizer: "adam"
 
-    # Fault tolerance — tuned for internet-routed connections
-    max_retries: 15                   # Increased from 10
-    retry_delay_seconds: 10           # Increased from 5
+    # Fault tolerance tuned for internet-routed connections
+    max_retries: 15
+    retry_delay_seconds: 10
     local_db_path: "~/.adf/"
 
     gradient_compression:
@@ -91,7 +84,7 @@ federated:
     autoencoder_threshold: 0.8
     validation_samples: 100
 
-# Distributed Tracing Configuration
+# Distributed tracing configuration
 tracing:
   jaeger:
     host: "localhost"
@@ -109,7 +102,7 @@ tracing:
     min_edge_weight: 0.01
     snapshot_interval: 300
 
-# Root Cause Analysis Configuration
+# Root cause analysis configuration
 root_cause:
   pagerank:
     alpha: 0.85
@@ -126,7 +119,7 @@ root_cause:
     max_chain_length: 10
     confidence_threshold: 0.6
 
-# Adaptive Thresholding Configuration
+# Adaptive thresholding configuration
 thresholding:
   slo:
     latency_p95_ms: 200
@@ -166,7 +159,7 @@ thresholding:
       false_negative_penalty: -5.0
       slo_violation_penalty: 0.0
 
-# Coordinator Configuration
+# Coordinator configuration
 coordinator:
   server:
     host: "0.0.0.0"
@@ -185,9 +178,7 @@ coordinator:
     max_size: 10000
     flush_interval: 5
 
-# Database Configuration — SQLite-only for t3.micro
-# PostgreSQL and Redis are disabled; the coordinator code
-# gracefully falls back to in-memory / SQLite stores.
+# Database configuration
 database:
   type: "sqlite"
   sqlite:
@@ -206,7 +197,7 @@ database:
     port: 6379
     db: 0
 
-# Monitoring Configuration
+# Monitoring configuration
 monitoring:
   prometheus:
     enabled: true
@@ -214,16 +205,16 @@ monitoring:
     metrics_path: "/metrics"
 
   grafana:
-    enabled: false       # No Grafana on t3.micro
+    enabled: false
 
   logging:
     level: "INFO"
     format: "json"
     file: "logs/adf.log"
     rotation: "100 MB"
-    retention: "7 days"  # Shorter retention for budget VMs
+    retention: "7 days"
 
-# Experimental Configuration
+# Experimental configuration
 experiments:
   data_generation:
     num_services: 20

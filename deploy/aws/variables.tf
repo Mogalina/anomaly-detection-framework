@@ -1,14 +1,10 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — Terraform Variables
-# ──────────────────────────────────────────────────────────────
-
 variable "project_prefix" {
   description = "Prefix applied to all resource names"
   type        = string
   default     = "adf"
 }
 
-# ── Regions ──────────────────────────────────────────────────
+# ─── Regions ───
 
 variable "primary_region" {
   description = "AWS region for the coordinator and primary edge nodes"
@@ -38,7 +34,7 @@ variable "secondary_regions" {
   }
 }
 
-# ── Primary region edge counts ───────────────────────────────
+# ─── Primary region edge counts ───
 
 variable "primary_edge_count_standard" {
   description = "Number of standard-profile edge nodes in the primary region"
@@ -52,7 +48,7 @@ variable "primary_edge_count_lightweight" {
   default     = 1
 }
 
-# ── Instance types ───────────────────────────────────────────
+# ─── Instance types ───
 
 variable "coordinator_instance_type" {
   description = "EC2 instance type for the coordinator"
@@ -66,7 +62,7 @@ variable "edge_instance_type" {
   default     = "t3.micro"
 }
 
-# ── Networking & SSH ─────────────────────────────────────────
+# ─── Networking & SSH ───
 
 variable "allowed_ssh_cidr" {
   description = "CIDR block allowed to SSH into instances (restrict for production)"
@@ -74,7 +70,7 @@ variable "allowed_ssh_cidr" {
   default     = "0.0.0.0/0"
 }
 
-# ── ECR ──────────────────────────────────────────────────────
+# ─── ECR ───
 
 variable "ecr_repo_names" {
   description = "ECR repository names for the Docker images"
@@ -82,7 +78,7 @@ variable "ecr_repo_names" {
   default     = ["adf-coordinator", "adf-edge", "adf-edge-lightweight"]
 }
 
-# ── AMI ──────────────────────────────────────────────────────
+# ─── AMI ───
 
 variable "ami_name_filter" {
   description = "AMI name filter for Amazon Linux 2023"

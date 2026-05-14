@@ -7,21 +7,16 @@ This document outlines the step-by-step procedures for deploying the anomaly det
 The following utilities are required on the host system:
 
 ```bash
-aws --version       # AWS Command Line Interface
-terraform --version # HashiCorp Terraform
-docker --version    # Docker Daemon
+aws --version
+terraform --version
+docker --version
 ```
 
 ### Installation of Dependencies:
 
 ```bash
-# 1. AWS CLI
 brew install awscli
-
-# 2. Terraform
 brew install hashicorp/tap/terraform
-
-# 3. Docker Desktop
 brew install --cask docker
 ```
 

@@ -1,0 +1,29 @@
+```mermaid
+flowchart TD
+    classDef io fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef rl fill:#e6ffff,stroke:#00cccc,stroke-width:2px;
+
+    StateInput[Current System State<br>Alert Volume, False Positive Rate] --> RLAgent[Q-Learning Agent]
+    
+    RLAgent --> ActionSelect[Action Selection<br>Epsilon-Greedy Policy]
+    
+    ActionSelect --> Action{Adjust Threshold}
+    Action -->|Increase tau| ThresholdUp[Threshold + Delta]
+    Action -->|Decrease tau| ThresholdDown[Threshold - Delta]
+    Action -->|Maintain| ThresholdSame[Threshold No Change]
+    
+    ThresholdUp --> Apply[Apply to Edge Detectors]
+    ThresholdDown --> Apply
+    ThresholdSame --> Apply
+    
+    Apply --> Monitor[Monitor Post-Action SLO Violations]
+    
+    Monitor --> RewardCalc[Calculate Reward<br>Penalty for Alerts vs Misses]
+    
+    RewardCalc --> QTableUpdate[Update Q-Table<br>Bellman Equation]
+    
+    QTableUpdate --> StateInput
+
+    class StateInput,Apply io;
+    class RLAgent,ActionSelect,Action,ThresholdUp,ThresholdDown,ThresholdSame,Monitor,RewardCalc,QTableUpdate rl;
+```

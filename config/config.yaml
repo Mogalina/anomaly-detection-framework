@@ -1,4 +1,4 @@
-# Edge Detector Configuration
+# Edge detector configuration
 edge:
   model:
     type: "lstm"
@@ -25,7 +25,7 @@ edge:
     stride: 1
     sampling_rate: 1.0
 
-# Federated Learning Configuration
+# Federated learning configuration
 federated:
   coordinator:
     host: "0.0.0.0"
@@ -39,8 +39,8 @@ federated:
     staleness_tolerance: 2
 
     # Fault tolerance
-    round_timeout_seconds: 120 # max seconds to wait for client updates per round
-    checkpoint_dir: "checkpoints/" # directory for global model .pt checkpoints
+    round_timeout_seconds: 120
+    checkpoint_dir: "checkpoints/"
 
   client:
     epochs_per_round: 5
@@ -48,10 +48,10 @@ federated:
     learning_rate: 0.001
     optimizer: "adam"
 
-    # Fault tolerance / reconnect
-    max_retries: 10 # max connection attempts with exponential backoff
-    retry_delay_seconds: 5 # base delay in seconds (doubles each retry)
-    local_db_path: "~/.adf/" # database directory
+    # Fault tolerance 
+    max_retries: 10
+    retry_delay_seconds: 5
+    local_db_path: "~/.adf/"
 
     gradient_compression:
       enabled: true
@@ -84,7 +84,7 @@ federated:
     autoencoder_threshold: 0.8
     validation_samples: 100
 
-# Distributed Tracing Configuration
+# Distributed tracing configuration
 tracing:
   jaeger:
     host: "localhost"
@@ -102,7 +102,7 @@ tracing:
     min_edge_weight: 0.01
     snapshot_interval: 300
 
-# Root Cause Analysis Configuration
+# Root cause analysis configuration
 root_cause:
   pagerank:
     alpha: 0.85
@@ -119,7 +119,7 @@ root_cause:
     max_chain_length: 10
     confidence_threshold: 0.6
 
-# Adaptive Thresholding Configuration
+# Adaptive thresholding configuration
 thresholding:
   slo:
     latency_p95_ms: 200
@@ -159,7 +159,7 @@ thresholding:
       false_negative_penalty: -5.0
       slo_violation_penalty: 0.0
 
-# Coordinator Configuration
+# Coordinator configuration
 coordinator:
   server:
     host: "0.0.0.0"
@@ -178,7 +178,7 @@ coordinator:
     max_size: 10000
     flush_interval: 5
 
-# Database Configuration
+# Database configuration
 database:
   postgres:
     host: "localhost"
@@ -189,14 +189,13 @@ database:
     pool_size: 10
     max_overflow: 20
 
-  # Redis ephemeral buffer for in-flight Federated Learning round updates
-  # Falls back to in-memory dictionary gracefully if Redis is unavailable
+  # Redis ephemeral buffer
   redis:
     host: "localhost"
     port: 6379
     db: 0
 
-# Monitoring Configuration
+# Monitoring configuration
 monitoring:
   prometheus:
     enabled: true
@@ -214,7 +213,7 @@ monitoring:
     rotation: "100 MB"
     retention: "30 days"
 
-# Experimental Configuration
+# Experimental configuration
 experiments:
   data_generation:
     num_services: 20

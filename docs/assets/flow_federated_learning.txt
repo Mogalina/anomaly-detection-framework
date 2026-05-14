@@ -1,0 +1,27 @@
+```mermaid
+sequenceDiagram
+    participant Edge as Edge Node (Client)
+    participant Coord as Federated Coordinator
+    participant DB as Global State DB
+
+    Note over Edge,Coord: Initial Synchronization
+    Coord->>Edge: 1. Broadcast Initial Global Weights
+    Edge-->>Coord: Acknowledge Receipt
+
+    Note over Edge: Local Training Phase
+    Edge->>Edge: 2. Collect Telemetry
+    Edge->>Edge: 3. Compute LSTM-AE Gradients
+    Edge->>Edge: 4. Apply DP-SGD (Clip & Noise)
+
+    Note over Edge,Coord: Aggregation Phase
+    Edge->>Coord: 5. Transmit Encrypted Gradients (gRPC)
+    Coord->>Coord: 6. Buffer until Min Clients (K) reached
+    Coord->>Coord: 7. Validate Gradients (Anti-Poisoning)
+    
+    Note over Coord,DB: FedAvg Execution
+    Coord->>Coord: 8. Execute FedAvg Algorithm
+    Coord->>DB: 9. Persist Round Result (Loss, Weights)
+    
+    Coord->>Edge: 10. Broadcast New Global Weights
+    Note over Edge: Cycle Repeats
+```

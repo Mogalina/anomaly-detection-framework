@@ -1,25 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────────────
-# ADF Coordinator — EC2 User-Data Bootstrap
-# ──────────────────────────────────────────────────────────────
-
 exec > /var/log/adf-bootstrap.log 2>&1
-echo "=== ADF Coordinator bootstrap started at $(date -u) ==="
+echo "Anomaly Detection Framework: Coordinator bootstrap started at $(date -u)"
 
-# ── Install Docker ───────────────────────────────────────────
+# ─── Install Docker ───
 dnf update -y -q
 dnf install -y docker aws-cli
 systemctl enable docker
 systemctl start docker
 usermod -aG docker ec2-user
 
-# ── Authenticate to ECR ──────────────────────────────────────
+# ─── Authenticate to ECR ───
 aws ecr get-login-password --region ${aws_region} \
   | docker login --username AWS --password-stdin ${ecr_registry}
 
-# ── Pull coordinator image (with retry) ──────────────────────
+# ─── Pull coordinator image (with retry) ───
 MAX_RETRIES=5
 for i in $(seq 1 $MAX_RETRIES); do
   echo "Pull attempt $i/$MAX_RETRIES..."
@@ -38,7 +34,7 @@ for i in $(seq 1 $MAX_RETRIES); do
     | docker login --username AWS --password-stdin ${ecr_registry}
 done
 
-# ── Run Redis and Coordinator containers ────────────────────────
+# ─── Run Redis and Coordinator containers ───
 docker network create adf-net || true
 
 docker run -d \
@@ -61,4 +57,4 @@ docker run -d \
   -v /opt/adf/logs:/app/logs \
   ${ecr_coordinator_url}:latest
 
-echo "=== ADF Coordinator bootstrap completed at $(date -u) ==="
+echo "Anomaly Detection Framework: Coordinator bootstrap completed at $(date -u)"

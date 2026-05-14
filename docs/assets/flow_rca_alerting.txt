@@ -1,0 +1,28 @@
+```mermaid
+sequenceDiagram
+    participant TS as Telemetry Source (Microservice)
+    participant AE as LSTM-Autoencoder
+    participant RCA as Root Cause Analyzer
+    participant RL as Q-Learning Tuner
+    participant Dash as Grafana Dashboard
+
+    TS->>AE: 1. Stream 38-dim Metrics
+    AE->>AE: 2. Reconstruct Time-Series
+    AE->>AE: 3. Calculate MSE Vector
+    
+    alt MSE > Threshold
+        AE-->>RCA: 4. Trigger Anomaly Event (Service ID, Timestamp)
+        
+        RCA->>RCA: 5. Query Jaeger for Traces around Timestamp
+        RCA->>RCA: 6. Build Causal Dependency Graph
+        RCA->>RCA: 7. Execute PageRank
+        
+        RCA-->>Dash: 8. Publish Root Cause Rankings
+        
+        RCA-->>RL: 9. Report Alert Volume
+        RL->>RL: 10. Assess SLO Compliance (Too many alerts?)
+        RL-->>AE: 11. Adjust dynamic threshold up/down
+    else MSE <= Threshold
+        AE->>Dash: Log normal metrics (Silent)
+    end
+```

@@ -1,0 +1,29 @@
+```mermaid
+flowchart TD
+    classDef io fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef process fill:#e6f2ff,stroke:#0066cc,stroke-width:2px;
+    classDef ai fill:#ffe6e6,stroke:#cc0000,stroke-width:2px;
+
+    Input[Raw System Metrics<br>CPU, Mem, Net, Disk] --> MetricCollector[System Metrics Collector]
+    MetricCollector --> Preprocessor[Data Preprocessor<br>Z-Score Normalization]
+    
+    Preprocessor --> InferenceEngine[LSTM-AE Inference Engine]
+    
+    InferenceEngine --> ErrorCalc[Reconstruction Error Calculation]
+    ErrorCalc --> ThresholdCheck{MSE > Dynamic Threshold?}
+    
+    ThresholdCheck -->|Yes| AlertGen[Trigger Anomaly Alert]
+    ThresholdCheck -->|No| NormalOps[Log Normal Operation]
+    
+    AlertGen --> OutputAlert[Emit to Prometheus/Coordinator]
+    
+    %% Training Flow
+    Preprocessor -.-> LocalTraining[Local Model Training<br>Backpropagation]
+    LocalTraining --> DPSGD[Differential Privacy Engine<br>L2 Clipping & Gaussian Noise]
+    DPSGD --> Serializer[Weights Serializer<br>TorchSave + Zstd]
+    Serializer --> Upload[gRPC Upload to Coordinator]
+
+    class Input,OutputAlert io;
+    class MetricCollector,Preprocessor,ErrorCalc,ThresholdCheck,Serializer,Upload,AlertGen,NormalOps process;
+    class InferenceEngine,LocalTraining,DPSGD ai;
+```

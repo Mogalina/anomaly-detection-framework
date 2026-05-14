@@ -36,9 +36,9 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
-      - "16686:16686"  # UI
-      - "14268:14268"  # HTTP collector
-      - "6831:6831/udp"  # Agent
+      - "16686:16686"
+      - "14268:14268"   
+      - "6831:6831/udp" 
     networks:
       - adf-network
 

@@ -1,10 +1,3 @@
-"""
-Federated Anomaly Detection Prometheus Exporter
-===============================================
-This module acts as a real-time simulator and telemetry exporter for the framework.
-It streams the SMD dataset through a pre-trained LSTM-AE model, injects simulated
-anomalies, and computes authentic Root Cause Analysis (RCA) traces using the causal graph.
-"""
 import os
 import sys
 import time
@@ -39,7 +32,7 @@ smd_loader = _import_from_file('smd_loader', os.path.join(ROOT, 'tests', 'utils'
 LSTMAnomalyDetector = models.LSTMAnomalyDetector
 load_smd_dataset = smd_loader.load_smd_dataset
 
-# ── 1. Edge Detection Metrics ──
+# Edge detection metrics
 error_gauge = Gauge('smd_reconstruction_error', 'Current reconstruction error')
 threshold_gauge = Gauge('smd_anomaly_threshold', 'Adaptive threshold')
 anomaly_gauge = Gauge('smd_is_anomaly', '1 if anomalous')
@@ -47,7 +40,7 @@ q_learning_reward = Gauge('q_learning_reward', 'Q-learning cumulative reward')
 cumulative_alerts = Counter('cumulative_alerts', 'Total alerts fired')
 false_positive_rate = Gauge('smd_fpr', 'Current False Positive Rate estimate')
 
-# ── 2. FL & DP Metrics ──
+# Federated learning and differential privacy metrics
 fl_round = Gauge('fl_current_round', 'Federated Learning Round')
 fl_loss = Gauge('fl_global_loss', 'Global Training Loss')
 fl_agg_latency = Gauge('fl_aggregation_latency_ms', 'Coordinator Aggregation Latency')
@@ -57,13 +50,13 @@ dp_sigma = Gauge('dp_sigma', 'DP Noise Multiplier')
 dp_clipping = Gauge('dp_clipping_norm', 'DP Clipping Norm (C)')
 payload_size = Gauge('fl_payload_size_kb', 'Communication Payload Size', ['format', 'compression'])
 
-# ── 3. RCA & Trace Metrics ──
+# Root cause analysis & trace metrics
 rca_prob = Gauge('rca_root_cause_probability', 'Probability of root cause', ['service', 'fault_type'])
 # We use a gauge with value 1 to expose trace metadata via labels
 incident_trace = Gauge('incident_active_trace', 'Active incident trace metadata', 
                        ['incident_id', 'root_cause', 'fault_type', 'affected_services', 'critical_path'])
 
-# ── 4. Microservice Telemetry (11 Train-Ticket Services) ──
+# Microservice telemetry 
 ms_latency = Gauge('ms_latency_ms', 'Microservice Latency', ['service'])
 ms_cpu = Gauge('ms_cpu_percent', 'Microservice CPU', ['service'])
 ms_memory = Gauge('ms_memory_mb', 'Microservice Memory', ['service'])
@@ -78,7 +71,7 @@ TRAIN_TICKET_SERVICES = [
     'ts-notification-service', 'ts-security-service'
 ]
 
-# Hardcoded realistic dependency map for simulation
+# Dependency map for simulation
 DEPENDENCIES = {
     'ts-ui-dashboard': ['ts-auth-service', 'ts-order-service', 'ts-route-service'],
     'ts-order-service': ['ts-payment-service', 'ts-ticketinfo-service'],
@@ -162,7 +155,7 @@ def run_exporter() -> None:
     q_reward_val = -15.0
     incident_counter = 1000
     
-    # Initialize static DP / FL values based on thesis
+    # Initialize differential privacy and federated learning values
     dp_epsilon.set(10.0)
     dp_sigma.set(0.0005)
     dp_clipping.set(1.0)
@@ -195,13 +188,13 @@ def run_exporter() -> None:
             q_reward_val += 0.01
         q_learning_reward.set(q_reward_val)
             
-        # Simulate FL training heartbeat
+        # Simulate federated learning training heartbeat
         fl_round.set(fl_round_val)
         fl_loss.set(0.00002 + random.uniform(-0.000005, 0.000005))
         fl_agg_latency.set(25.4 + random.uniform(-2, 2))
         fl_agg_memory.set(42.3 + random.uniform(-1, 1))
         
-        # Microservices and RCA
+        # Microservices and root cause analysis
         rca_prob.clear()
         incident_trace.clear()
         
@@ -224,7 +217,7 @@ def run_exporter() -> None:
                 critical_path=path_str
             ).set(1.0)
             
-            # Distribute RCA probabilities
+            # Distribute root cause analysis probabilities
             rca_prob.labels(service=culprit, fault_type=fault).set(random.uniform(0.7, 0.95))
             others = random.sample([s for s in TRAIN_TICKET_SERVICES if s != culprit], 2)
             rca_prob.labels(service=others[0], fault_type='Cascade').set(random.uniform(0.2, 0.4))

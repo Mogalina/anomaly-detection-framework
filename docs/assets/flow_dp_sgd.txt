@@ -1,0 +1,25 @@
+```mermaid
+sequenceDiagram
+    participant Model as LSTM-AE Model
+    participant Opt as Optimizer (DP-SGD)
+    participant Coord as FL Coordinator
+
+    Note over Model,Opt: Epoch Completion
+    Model->>Opt: 1. Produce Raw Gradients (Backprop)
+    
+    Opt->>Opt: 2. Compute L2 Norm of Gradients (||g||_2)
+    
+    alt ||g||_2 > Clipping Norm (C)
+        Opt->>Opt: 3a. Clip Gradients: g = g * (C / ||g||_2)
+    else ||g||_2 <= Clipping Norm (C)
+        Opt->>Opt: 3b. Keep Gradients: g = g
+    end
+    
+    Opt->>Opt: 4. Generate Gaussian Noise ~ N(0, σ²C²)
+    Opt->>Opt: 5. Add Noise to Clipped Gradients
+    
+    Opt->>Model: 6. Update Local Weights
+    
+    Note over Model,Coord: Round Completion
+    Model-->>Coord: 7. Transmit Privacy-Preserving Weights
+```

@@ -1,0 +1,28 @@
+```mermaid
+flowchart TD
+    classDef io fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef graph fill:#f2e6ff,stroke:#6600cc,stroke-width:2px;
+    classDef alg fill:#ffffe6,stroke:#cccc00,stroke-width:2px;
+
+    Alert[Edge Anomaly Alert Received] --> TraceFetch[Jaeger Trace Collector]
+    
+    TraceFetch --> SpanParse[Span Parser<br>Extract Parent-Child Relationships]
+    
+    SpanParse --> GraphBuilder[Dynamic Directed Acyclic Graph Builder]
+    
+    GraphBuilder --> GraphState[(Causal Graph DB<br>NetworkX State)]
+    
+    GraphState --> WeightCalc[Edge Weight Calculator<br>Latency/Error Propagation]
+    
+    WeightCalc --> PageRank[Personalized PageRank Algorithm]
+    
+    PageRank --> Sort[Sort Services by Impact Probability]
+    
+    Sort --> RootCause[Identify Top-1 Root Cause]
+    
+    RootCause --> Output[Emit Root Cause to SRE Dashboard]
+
+    class Alert,Output io;
+    class TraceFetch,SpanParse,GraphBuilder,GraphState graph;
+    class WeightCalc,PageRank,Sort,RootCause alg;
+```

@@ -1,4 +1,4 @@
-# Core
+# Core lightweight requirements
 grpcio>=1.59.0
 protobuf>=4.25.0
 torch>=2.1.0
@@ -6,12 +6,12 @@ numpy>=1.24.3
 psutil>=5.9.6
 pyyaml>=6.0.1
 
-# Payload compression (required by utils/compression.py)
+# Payload compression
 lz4>=4.3.2
 zstandard>=0.22.0
 
-# Logging (required by utils/logger.py)
+# Logging
 loguru>=0.7.2
 
-# Prometheus metrics (required by utils/metrics.py)
+# Prometheus metrics
 prometheus-client>=0.17.1

@@ -1,0 +1,31 @@
+```mermaid
+flowchart TD
+    classDef io fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef security fill:#fff0e6,stroke:#ff6600,stroke-width:2px;
+    classDef logic fill:#e6ffe6,stroke:#009900,stroke-width:2px;
+
+    InputGrants[Encrypted Gradients from Edge] --> GRPCReceiver[gRPC Ingress Server]
+    
+    GRPCReceiver --> Decompressor[Payload Decompressor<br>Zstd]
+    Decompressor --> Deserializer[State Dict Deserializer]
+    
+    Deserializer --> PoisonCheck[Gradient Poisoning Detector<br>Statistical/Autoencoder Analysis]
+    
+    PoisonCheck -->|Malicious / Outlier| Drop[Drop Update & Log Warning]
+    PoisonCheck -->|Validated| Buffer[Staging Buffer<br>Wait for Min Clients]
+    
+    Buffer --> ReadyCheck{Round Threshold Met?}
+    
+    ReadyCheck -->|No| Wait[Wait for More Clients]
+    ReadyCheck -->|Yes| FedAvg[FedAvg Aggregation Engine<br>Weighted Average]
+    
+    FedAvg --> GlobalUpdate[Update Global Model State]
+    GlobalUpdate --> SaveDB[(PostgreSQL/Disk Storage)]
+    
+    GlobalUpdate --> Broadcast[Serialize & Broadcast Global Weights]
+    Broadcast --> Output[gRPC Egress to Edge Clients]
+
+    class InputGrants,Output io;
+    class PoisonCheck,Drop security;
+    class GRPCReceiver,Decompressor,Deserializer,Buffer,ReadyCheck,Wait,FedAvg,GlobalUpdate,Broadcast logic;
+```

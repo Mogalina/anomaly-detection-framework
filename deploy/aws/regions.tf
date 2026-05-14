@@ -1,18 +1,11 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — Secondary Region Providers & Edge Modules
-# ──────────────────────────────────────────────────────────────
-# Deploys edge nodes in eu-west-1, us-east-1, ap-southeast-1
-# using the reusable edge-region module.
-# ──────────────────────────────────────────────────────────────
-
-# ── Export public key for secondary regions ──────────────────
+# ─── Export public key for secondary regions ───
 
 resource "local_file" "ssh_public_key" {
   content  = tls_private_key.ssh.public_key_openssh
   filename = "${path.module}/adf-key.pub"
 }
 
-# ── Secondary Region Providers ───────────────────────────────
+# ─── Secondary Region Providers ───
 
 provider "aws" {
   alias  = "eu_west_1"
@@ -53,7 +46,7 @@ provider "aws" {
   }
 }
 
-# ── eu-west-1 (Ireland) — 1 standard + 1 lightweight ────────
+# ── eu-west-1 (Ireland) ───
 
 module "edge_eu_west_1" {
   source = "./modules/edge-region"
@@ -81,7 +74,7 @@ module "edge_eu_west_1" {
   depends_on = [aws_instance.coordinator, local_file.ssh_public_key]
 }
 
-# ── us-east-1 (N. Virginia) — 2 standard + 1 lightweight ───
+# ─── us-east-1 (N. Virginia) ───
 
 module "edge_us_east_1" {
   source = "./modules/edge-region"
@@ -109,7 +102,7 @@ module "edge_us_east_1" {
   depends_on = [aws_instance.coordinator, local_file.ssh_public_key]
 }
 
-# ── ap-southeast-1 (Singapore) — 0 standard + 1 lightweight ─
+# ─── ap-southeast-1 (Singapore) ───
 
 module "edge_ap_southeast_1" {
   source = "./modules/edge-region"

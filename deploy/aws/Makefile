@@ -1,17 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — AWS Deployment Makefile
-# ──────────────────────────────────────────────────────────────
-# Usage:
-#   make all          — full pipeline: build → push → deploy
-#   make build        — build Docker images (linux/amd64)
-#   make push         — push images to ECR
-#   make deploy       — terraform init + apply
-#   make destroy      — terraform destroy (cleanup)
-#   make status       — show instance IPs and health
-#   make ssh-coordinator  — SSH into coordinator
-#   make logs         — tail coordinator container logs via SSH
-# ──────────────────────────────────────────────────────────────
-
 .PHONY: all build push deploy destroy status ssh-coordinator ssh-edge logs plan validate init clean help
 
 SHELL := /bin/bash
@@ -21,7 +7,7 @@ AWS_ACCOUNT := $(shell aws sts get-caller-identity --query Account --output text
 ECR_REGISTRY := $(AWS_ACCOUNT).dkr.ecr.$(AWS_REGION).amazonaws.com
 PREFIX := adf
 
-# ── Full Pipeline ────────────────────────────────────────────
+# ─── Full Pipeline ───
 
 all: build push deploy status
 	@echo ""
@@ -29,7 +15,7 @@ all: build push deploy status
 	@echo "  ADF deployment complete!"
 	@echo "===================================="
 
-# ── Docker Build ─────────────────────────────────────────────
+# ─── Docker Build ───
 
 build:
 	@echo "==> Building Docker images (linux/amd64)..."
@@ -53,7 +39,7 @@ build:
 
 	@echo "==> Docker images built successfully"
 
-# ── ECR Push ─────────────────────────────────────────────────
+# ─── ECR Push ───
 
 push:
 	@echo "==> Authenticating to ECR in $(AWS_REGION)..."
@@ -75,7 +61,7 @@ push:
 
 	@echo "==> Images pushed to ECR"
 
-# ── Terraform ────────────────────────────────────────────────
+# ─── Terraform ───
 
 init:
 	terraform init
@@ -99,7 +85,7 @@ destroy:
 	terraform destroy -auto-approve
 	@echo "==> All resources destroyed."
 
-# ── Status & Monitoring ─────────────────────────────────────
+# ─── Status & Monitoring ───
 
 status:
 	@echo ""
@@ -148,13 +134,13 @@ logs:
 	ssh -i "$$KEY" -o StrictHostKeyChecking=no ec2-user@$$IP \
 		"sudo docker logs --tail 100 -f adf-coordinator"
 
-# ── Cleanup ──────────────────────────────────────────────────
+# ─── Cleanup ───
 
 clean:
 	rm -f adf-key.pem adf-key.pub
 	rm -rf .terraform .terraform.lock.hcl terraform.tfstate*
 
-# ── Help ─────────────────────────────────────────────────────
+# ─── Help ───
 
 help:
 	@echo "ADF AWS Deployment Targets:"

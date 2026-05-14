@@ -1,10 +1,3 @@
-"""
-Grafana Dashboard Generator
-===========================
-Generates multiple massive JSON representations of Grafana dashboards
-used to visualize the Anomaly Detection and Root Cause Analysis metrics.
-Outputs directly to the Grafana provisioning folder.
-"""
 import json
 import os
 

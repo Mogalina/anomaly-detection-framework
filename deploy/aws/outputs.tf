@@ -1,8 +1,4 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — Terraform Outputs
-# ──────────────────────────────────────────────────────────────
-
-# ── Coordinator ──────────────────────────────────────────────
+# ─── Coordinator ───
 
 output "coordinator_public_ip" {
   description = "Public IP of the coordinator instance"
@@ -19,7 +15,7 @@ output "coordinator_health_url" {
   value       = "http://${aws_instance.coordinator.public_ip}:8080/health"
 }
 
-# ── ECR ──────────────────────────────────────────────────────
+# ─── ECR ───
 
 output "ecr_coordinator_url" {
   description = "ECR URL for the coordinator image"
@@ -41,7 +37,7 @@ output "ecr_registry" {
   value       = local.ecr_registry
 }
 
-# ── Primary Region Edge Nodes ────────────────────────────────
+# ─── Primary Region Edge Nodes ───
 
 output "primary_edge_standard_ips" {
   description = "Public IPs of standard edge nodes in the primary region"
@@ -53,7 +49,7 @@ output "primary_edge_lightweight_ips" {
   value       = aws_instance.edge_lightweight[*].public_ip
 }
 
-# ── Secondary Region Edge Nodes ──────────────────────────────
+# ─── Secondary Region Edge Nodes ───
 
 output "eu_west_1_standard_ips" {
   description = "Standard edge node IPs in eu-west-1"
@@ -85,7 +81,7 @@ output "ap_southeast_1_lightweight_ips" {
   value       = module.edge_ap_southeast_1.edge_lightweight_public_ips
 }
 
-# ── SSH ──────────────────────────────────────────────────────
+# ─── SSH ───
 
 output "ssh_private_key_path" {
   description = "Path to the generated SSH private key"
@@ -97,7 +93,7 @@ output "ssh_coordinator_command" {
   value       = "ssh -i ${local_file.ssh_private_key.filename} ec2-user@${aws_instance.coordinator.public_ip}"
 }
 
-# ── Summary ──────────────────────────────────────────────────
+# ─── Summary ───
 
 output "deployment_summary" {
   description = "Summary of the deployment"

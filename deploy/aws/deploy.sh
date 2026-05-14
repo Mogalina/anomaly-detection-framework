@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# ──────────────────────────────────────────────────────────────
-# ADF — End-to-End AWS Deployment Script
-# ──────────────────────────────────────────────────────────────
-# Usage: ./deploy.sh [--destroy]
-#
-# This script:
-#   1. Validates prerequisites (AWS CLI, Terraform, Docker)
-#   2. Builds Docker images for linux/amd64
-#   3. Creates ECR repositories via Terraform
-#   4. Pushes images to ECR
-#   5. Deploys all infrastructure (10 VMs across 4 regions)
-#   6. Waits for coordinator health check
-#   7. Prints connection summary
-# ──────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -31,7 +17,7 @@ warn()  { echo -e "${YELLOW}[ADF]${NC} $*"; }
 error() { echo -e "${RED}[ADF]${NC} $*" >&2; }
 info()  { echo -e "${CYAN}[ADF]${NC} $*"; }
 
-# ── Destroy mode ─────────────────────────────────────────────
+# ─── Destroy mode ───
 
 if [[ "${1:-}" == "--destroy" ]]; then
     log "Destroying all ADF infrastructure..."
@@ -41,7 +27,7 @@ if [[ "${1:-}" == "--destroy" ]]; then
     exit 0
 fi
 
-# ── Prerequisites Check ─────────────────────────────────────
+# ─── Prerequisites Check ───
 
 log "Checking prerequisites..."
 
@@ -67,20 +53,20 @@ log "AWS Account: $AWS_ACCOUNT"
 log "Primary Region: $AWS_REGION"
 log "ECR Registry: $ECR_REGISTRY"
 
-# ── Step 1: Initialize Terraform ─────────────────────────────
+# ─── Step 1: Initialize Terraform ───
 
 log "Step 1/6: Initializing Terraform..."
 cd "$SCRIPT_DIR"
 terraform init -input=false
 
-# ── Step 2: Create ECR Repositories ──────────────────────────
+# ─── Step 2: Create ECR Repositories ───
 
 log "Step 2/6: Creating ECR repositories..."
 terraform apply -auto-approve \
     -target=aws_ecr_repository.images \
     -input=false
 
-# ── Step 3: Build Docker Images ──────────────────────────────
+# ─── Step 3: Build Docker Images ───
 
 log "Step 3/6: Building Docker images (linux/amd64)..."
 
@@ -104,7 +90,7 @@ docker build \
 
 log "Docker images built successfully"
 
-# ── Step 4: Push to ECR ──────────────────────────────────────
+# ─── Step 4: Push to ECR ───
 
 log "Step 4/6: Pushing images to ECR..."
 
@@ -118,7 +104,7 @@ for image in coordinator edge edge-lightweight; do
     log "  Pushed ${PREFIX}-${image}"
 done
 
-# ── Step 5: Deploy Infrastructure ────────────────────────────
+# ─── Step 5: Deploy Infrastructure ───
 
 log "Step 5/6: Deploying infrastructure across 4 regions..."
 terraform apply -auto-approve -input=false
@@ -126,7 +112,7 @@ terraform apply -auto-approve -input=false
 COORDINATOR_IP=$(terraform output -raw coordinator_public_ip)
 log "Coordinator deployed at: $COORDINATOR_IP"
 
-# ── Step 6: Wait for Health Check ────────────────────────────
+# ─── Step 6: Wait for Health Check ───
 
 log "Step 6/6: Waiting for coordinator to become healthy..."
 
@@ -149,13 +135,8 @@ if [ $WAITED -ge $MAX_WAIT ]; then
     warn "It may still be bootstrapping. Check with: make logs"
 fi
 
-# ── Summary ──────────────────────────────────────────────────
+# ─── Summary ───
 
-echo ""
-echo "========================================================"
-echo "  ADF Multi-Region Deployment Complete"
-echo "========================================================"
-echo ""
 info "Coordinator:"
 info "  IP:      $COORDINATOR_IP"
 info "  API:     http://${COORDINATOR_IP}:8080"
@@ -184,5 +165,3 @@ info "Commands:"
 info "  make status     — check all instances"
 info "  make logs       — tail coordinator logs"
 info "  make destroy    — tear down everything"
-echo ""
-echo "========================================================"

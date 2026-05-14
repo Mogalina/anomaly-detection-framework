@@ -1,14 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# ADF — Terraform Root Module (Primary Region)
-# ──────────────────────────────────────────────────────────────
-# Provisions:
-#   • ECR repositories for all Docker images
-#   • SSH key pair (auto-generated)
-#   • Security group (gRPC, HTTP, Prometheus, SSH)
-#   • Coordinator EC2 instance
-#   • Primary-region edge nodes (standard + lightweight)
-# ──────────────────────────────────────────────────────────────
-
 terraform {
   required_version = ">= 1.5.0"
 
@@ -24,7 +13,7 @@ terraform {
   }
 }
 
-# ── Primary region provider ──────────────────────────────────
+# ─── Primary region provider ───
 
 provider "aws" {
   region = var.primary_region
@@ -38,7 +27,7 @@ provider "aws" {
   }
 }
 
-# ── Data sources ─────────────────────────────────────────────
+# ─── Data sources ───
 
 data "aws_caller_identity" "current" {}
 
@@ -77,7 +66,7 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# ── ECR Repositories ────────────────────────────────────────
+# ─── ECR Repositories ───
 
 resource "aws_ecr_repository" "images" {
   for_each = toset(var.ecr_repo_names)
@@ -95,7 +84,7 @@ resource "aws_ecr_repository" "images" {
   }
 }
 
-# ── SSH Key Pair (auto-generated) ────────────────────────────
+# ─── SSH Key Pair (auto-generated) ───
 
 resource "tls_private_key" "ssh" {
   algorithm = "RSA"
@@ -117,7 +106,7 @@ resource "local_file" "ssh_private_key" {
   file_permission = "0400"
 }
 
-# ── Security Group ───────────────────────────────────────────
+# ─── Security Group ───
 
 resource "aws_security_group" "adf" {
   name_prefix = "${var.project_prefix}-"
@@ -173,7 +162,7 @@ resource "aws_security_group" "adf" {
   }
 }
 
-# ── IAM Role for EC2 (ECR pull access) ──────────────────────
+# ─── IAM Role for EC2 (ECR pull access) ───
 
 resource "aws_iam_role" "ec2_ecr" {
   name = "${var.project_prefix}-ec2-ecr-role"
@@ -206,7 +195,7 @@ resource "aws_iam_instance_profile" "ec2_ecr" {
   role = aws_iam_role.ec2_ecr.name
 }
 
-# ── Locals ───────────────────────────────────────────────────
+# ─── Locals ───
 
 locals {
   ecr_registry      = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.primary_region}.amazonaws.com"
@@ -215,7 +204,7 @@ locals {
   ecr_edge_lw       = "${local.ecr_registry}/${var.project_prefix}/adf-edge-lightweight"
 }
 
-# ── Coordinator Instance ────────────────────────────────────
+# ─── Coordinator Instance ───
 
 resource "aws_instance" "coordinator" {
   ami                    = data.aws_ami.amazon_linux.id
@@ -241,7 +230,7 @@ resource "aws_instance" "coordinator" {
   }
 }
 
-# ── Primary Region Edge Nodes (Standard) ────────────────────
+# ─── Primary Region Edge Nodes (Standard) ───
 
 resource "aws_instance" "edge_standard" {
   count = var.primary_edge_count_standard
@@ -276,7 +265,7 @@ resource "aws_instance" "edge_standard" {
   depends_on = [aws_instance.coordinator]
 }
 
-# ── Primary Region Edge Nodes (Lightweight) ─────────────────
+# ─── Primary Region Edge Nodes (Lightweight) ───
 
 resource "aws_instance" "edge_lightweight" {
   count = var.primary_edge_count_lightweight
