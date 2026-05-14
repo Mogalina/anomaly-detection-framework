@@ -23,12 +23,9 @@ brew install hashicorp/tap/terraform
 
 # 3. Docker Desktop
 brew install --cask docker
-# Ensure the Docker daemon is initialized prior to execution.
 ```
 
 ## Step 1: AWS Credential Configuration
-
-> **Important**: An active AWS account is required. The deployment falls within the AWS Free Tier limitations for `t3.micro` instances.
 
 ```bash
 aws configure
@@ -144,9 +141,6 @@ Then verify in the AWS Console (check EC2 in all 4 regions):
 | ECR storage | 3 images | negligible | ~$0.00 |
 | Data transfer | varies | ~$0.09/GB | ~$0.50 |
 | **Total** | | | **~$1.50–$2.50** |
-
-> [!TIP]
-> `t3.micro` is **free-tier eligible** (750 hrs/month for 12 months after account creation). If your account is within the free tier window, the compute cost is $0.
 
 ## Troubleshooting
 
