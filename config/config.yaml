@@ -2,7 +2,7 @@
 edge:
   model:
     type: "lstm"
-    input_size: 17
+    input_size: 16
     hidden_size: 64
     num_layers: 2
     dropout: 0.2
@@ -144,17 +144,20 @@ thresholding:
     actions:
       - -0.5
       - -0.2
+      - -0.1
       - 0.0
+      - 0.1
       - 0.2
       - 0.5
+      - 1.0
     
     reward:
-      precision_weight: 0.3
-      recall_weight: 0.3
-      slo_compliance_weight: 0.4
-      false_positive_penalty: -1.0
-      false_negative_penalty: -2.0
-      slo_violation_penalty: -3.0
+      precision_weight: 0.5
+      recall_weight: 0.5
+      slo_compliance_weight: 0.1
+      false_positive_penalty: -5.0
+      false_negative_penalty: -5.0
+      slo_violation_penalty: 0.0
 
 # Coordinator Configuration
 coordinator:

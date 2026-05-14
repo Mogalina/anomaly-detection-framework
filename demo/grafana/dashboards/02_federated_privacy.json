@@ -1,0 +1,152 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "refresh": "1s",
+  "schemaVersion": 38,
+  "tags": [
+    "thesis",
+    "demo"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "2. Federated Learning & Privacy",
+  "uid": "dash-fl-dp",
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Noise Multiplier (\u03c3)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "dp_sigma"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Clipping Norm (C)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "dp_clipping_norm"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Privacy Budget (\u03b5)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "dp_epsilon"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Global Loss Convergence",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "fl_global_loss",
+          "legendFormat": "MSE"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Aggregation Overhead",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "fl_aggregation_latency_ms",
+          "legendFormat": "Latency (ms)"
+        },
+        {
+          "expr": "fl_coordinator_memory_mb",
+          "legendFormat": "Memory (MB)"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Payload Size Matrix (KB)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 6,
+      "options": {
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "expr": "fl_payload_size_kb",
+          "legendFormat": "{{format}} ({{compression}})"
+        }
+      ]
+    }
+  ]
+}

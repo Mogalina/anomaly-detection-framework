@@ -62,13 +62,17 @@ class ThresholdTuner:
         # Service states
         self.service_thresholds: Dict[str, float] = {}
         self.service_states: Dict[str, Dict] = {}
-        self.service_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        # Performance tracking using history for state representation
+        self.service_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=500))
+        self.eval_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=500))
+        self.last_state_key: Dict[str, str] = {}
+        self.last_action_idx: Dict[str, int] = {}
         
-        # Performance tracking
-        self.false_positives: Dict[str, int] = defaultdict(int)
-        self.false_negatives: Dict[str, int] = defaultdict(int)
-        self.true_positives: Dict[str, int] = defaultdict(int)
-        self.true_negatives: Dict[str, int] = defaultdict(int)
+        # Global performance tracking for external metrics
+        self.global_tp: Dict[str, int] = defaultdict(int)
+        self.global_fp: Dict[str, int] = defaultdict(int)
+        self.global_fn: Dict[str, int] = defaultdict(int)
+        self.global_tn: Dict[str, int] = defaultdict(int)
         
         logger.info(
             f"ThresholdTuner initialized: "
@@ -92,6 +96,7 @@ class ThresholdTuner:
     def update_feedback(
         self,
         service: str,
+        metric_value: float,
         was_anomaly_detected: bool,
         was_true_anomaly: bool,
         slo_violated: bool
@@ -101,20 +106,26 @@ class ThresholdTuner:
         
         Args:
             service: Service name
+            metric_value: The raw anomaly score
             was_anomaly_detected: Whether anomaly was detected
             was_true_anomaly: Whether it was actually an anomaly
             slo_violated: Whether SLO was violated
         """
-        # Update confusion matrix
+        # Update global confusion matrix
         if was_anomaly_detected and was_true_anomaly:
-            self.true_positives[service] += 1
+            self.global_tp[service] += 1
         elif was_anomaly_detected and not was_true_anomaly:
-            self.false_positives[service] += 1
+            self.global_fp[service] += 1
         elif not was_anomaly_detected and was_true_anomaly:
-            self.false_negatives[service] += 1
+            self.global_fn[service] += 1
         else:
-            self.true_negatives[service] += 1
-        
+            self.global_tn[service] += 1
+            
+        self.eval_history[service].append({
+            'detected': was_anomaly_detected,
+            'true_anomaly': was_true_anomaly
+        })
+            
         # Compute reward
         reward = self._compute_reward(
             service,
@@ -123,9 +134,10 @@ class ThresholdTuner:
             slo_violated
         )
         
-        # Store in history
+        # Record history
         self.service_history[service].append({
             'timestamp': __import__('time').time(),
+            'metric_value': metric_value,
             'detected': was_anomaly_detected,
             'true_anomaly': was_true_anomaly,
             'slo_violated': slo_violated,
@@ -150,7 +162,36 @@ class ThresholdTuner:
         current_state = self._compute_state(service)
         state_key = self._state_to_key(current_state)
         
-        # Choose action (epsilon-greedy)
+        # Update Q-value for the PREVIOUS state and action
+        if service in self.last_state_key:
+            prev_state_key = self.last_state_key[service]
+            prev_action_idx = self.last_action_idx[service]
+            
+            recent_reward = self._get_recent_reward(service)
+            
+            # Apply instability penalty to discourage endless threshold adjustments
+            prev_action_val = self.actions[prev_action_idx]
+            if prev_action_val != 0.0:
+                recent_reward -= 0.05 * abs(prev_action_val)
+                
+            # Gradient shaping: reward moving in the right direction even if it doesn't immediately fix the metric
+            if current_state['false_positive_rate'] > 0 and prev_action_val > 0:
+                recent_reward += 0.5 * current_state['false_positive_rate']
+            if current_state['false_negative_rate'] > 0 and prev_action_val < 0:
+                recent_reward += 0.5 * current_state['false_negative_rate']
+            
+            max_next_q = max(
+                [self.q_table[service][state_key][i] for i in range(len(self.actions))],
+                default=0
+            )
+            
+            current_q = self.q_table[service][prev_state_key][prev_action_idx]
+            new_q = current_q + self.learning_rate * (
+                recent_reward + self.discount_factor * max_next_q - current_q
+            )
+            self.q_table[service][prev_state_key][prev_action_idx] = new_q
+        
+        # Choose NEW action (epsilon-greedy)
         if random.random() < self.epsilon:
             # Explore
             action_idx = random.randint(0, len(self.actions) - 1)
@@ -164,31 +205,17 @@ class ThresholdTuner:
         
         action = self.actions[action_idx]
         
-        # Apply action
+        # Store for next update
+        self.last_state_key[service] = state_key
+        self.last_action_idx[service] = action_idx
+        
+        # Apply action multiplicatively and clip to a reasonable range
         old_threshold = self.service_thresholds[service]
-        new_threshold = max(0.1, old_threshold + action)
+        new_threshold = max(1e-5, min(10.0, old_threshold * (1.0 + action)))
         self.service_thresholds[service] = new_threshold
         
-        # Get reward from recent history
-        recent_reward = self._get_recent_reward(service)
-        
-        # Update Q-value
-        next_state = self._compute_state(service)
-        next_state_key = self._state_to_key(next_state)
-        
-        max_next_q = max(
-            [self.q_table[service][next_state_key][i] for i in range(len(self.actions))],
-            default=0
-        )
-        
-        current_q = self.q_table[service][state_key][action_idx]
-        new_q = current_q + self.learning_rate * (
-            recent_reward + self.discount_factor * max_next_q - current_q
-        )
-        self.q_table[service][state_key][action_idx] = new_q
-        
         # Update state
-        self.service_states[service] = next_state
+        self.service_states[service] = current_state
         
         # Decay epsilon
         self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
@@ -199,8 +226,8 @@ class ThresholdTuner:
         self.metrics.set_threshold(service, new_threshold)
         
         logger.info(
-            f"Tuned threshold for {service}: {old_threshold:.3f} -> {new_threshold:.3f} "
-            f"(action={action}, reward={recent_reward:.3f})"
+            f"Tuned threshold for {service}: {old_threshold:.5f} -> {new_threshold:.5f} "
+            f"(action={action})"
         )
         
         return new_threshold
@@ -215,11 +242,13 @@ class ThresholdTuner:
         Returns:
             State dictionary
         """
-        # Compute metrics
-        tp = self.true_positives[service]
-        fp = self.false_positives[service]
-        fn = self.false_negatives[service]
-        tn = self.true_negatives[service]
+        history = self.service_history[service]
+        current_threshold = self.service_thresholds.get(service, 0.0)
+        
+        tp = sum(1 for h in history if (h['metric_value'] > current_threshold) and h['true_anomaly'])
+        fp = sum(1 for h in history if (h['metric_value'] > current_threshold) and not h['true_anomaly'])
+        fn = sum(1 for h in history if (h['metric_value'] <= current_threshold) and h['true_anomaly'])
+        tn = sum(1 for h in history if (h['metric_value'] <= current_threshold) and not h['true_anomaly'])
         
         total = tp + fp + fn + tn
         
@@ -231,8 +260,8 @@ class ThresholdTuner:
             fnr = 0
         
         # SLO violation rate from history
-        if self.service_history[service]:
-            recent = list(self.service_history[service])[-20:]
+        if history:
+            recent = list(history)[-20:]
             slo_violation_rate = sum(1 for h in recent if h['slo_violated']) / len(recent)
         else:
             slo_violation_rate = 0
@@ -255,12 +284,11 @@ class ThresholdTuner:
             State key string
         """
         # Discretize continuous values
-        threshold_bucket = int(state['current_threshold'] * 10) / 10
-        fpr_bucket = int(state['false_positive_rate'] * 20) / 20
-        fnr_bucket = int(state['false_negative_rate'] * 20) / 20
-        slo_bucket = int(state['slo_violation_rate'] * 20) / 20
+        fpr_bucket = int(state['false_positive_rate'] * 10) / 10
+        fnr_bucket = int(state['false_negative_rate'] * 10) / 10
+        slo_bucket = int(state['slo_violation_rate'] * 10) / 10
         
-        return f"{threshold_bucket:.1f}_{fpr_bucket:.2f}_{fnr_bucket:.2f}_{slo_bucket:.2f}"
+        return f"{fpr_bucket:.1f}_{fnr_bucket:.1f}_{slo_bucket:.1f}"
     
     def _compute_reward(
         self,
@@ -331,10 +359,18 @@ class ThresholdTuner:
         Returns:
             Performance metrics
         """
-        tp = self.true_positives[service]
-        fp = self.false_positives[service]
-        fn = self.false_negatives[service]
-        tn = self.true_negatives[service]
+        # Compute metrics over global history for overall performance reporting
+        global_tp = self.global_tp[service]
+        global_fp = self.global_fp[service]
+        global_fn = self.global_fn[service]
+        global_tn = self.global_tn[service]
+        
+        # Compute recent F1 over the rolling evaluation buffer (Standard for online RL)
+        history = self.eval_history[service]
+        tp = sum(1 for h in history if h['detected'] and h['true_anomaly'])
+        fp = sum(1 for h in history if h['detected'] and not h['true_anomaly'])
+        fn = sum(1 for h in history if not h['detected'] and h['true_anomaly'])
+        tn = sum(1 for h in history if not h['detected'] and not h['true_anomaly'])
         
         precision = tp / max(1, tp + fp)
         recall = tp / max(1, tp + fn)
@@ -358,7 +394,11 @@ class ThresholdTuner:
             'true_positives': tp,
             'false_positives': fp,
             'false_negatives': fn,
-            'true_negatives': tn
+            'true_negatives': tn,
+            'global_tp': global_tp,
+            'global_fp': global_fp,
+            'global_fn': global_fn,
+            'global_tn': global_tn
         }
     
     def get_statistics(self) -> Dict:

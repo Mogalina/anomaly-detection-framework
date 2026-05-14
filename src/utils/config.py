@@ -87,9 +87,9 @@ def load_config(config_path: Optional[str] = None) -> Config:
     if config_path is None:
         # Try to find config in standard locations
         possible_paths = [
+            Path("/etc/adf/config.yaml"),
             Path("config/config.yaml"),
             Path("../config/config.yaml"),
-            Path("/etc/adf/config.yaml"),
         ]
         
         for path in possible_paths:

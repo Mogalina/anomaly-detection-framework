@@ -1,0 +1,251 @@
+# ──────────────────────────────────────────────────────────────
+# ADF — AWS Multi-Region Configuration Overlay
+# ──────────────────────────────────────────────────────────────
+# Tuned for t3.micro instances across 4 AWS regions with
+# varying WAN latency (same-region to ~150ms cross-continent).
+# ──────────────────────────────────────────────────────────────
+
+# Edge Detector Configuration
+edge:
+  model:
+    type: "lstm"
+    input_size: 17
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    sequence_length: 100
+    prediction_horizon: 1
+
+  detection:
+    initial_threshold: 3.0
+    threshold_percentile: 95
+    min_anomaly_duration: 3
+    smoothing_window: 5
+
+  inference:
+    batch_size: 32
+    quantization: true
+    quantization_dtype: "int8"
+
+  data:
+    window_size: 100
+    stride: 1
+    sampling_rate: 1.0
+
+# Federated Learning Configuration — AWS Tuned
+federated:
+  coordinator:
+    host: "0.0.0.0"
+    port: 50051
+    max_workers: 10
+    num_rounds: 100
+    min_clients_per_round: 3
+    fraction_fit: 0.8
+    fraction_evaluate: 0.5
+    aggregation_strategy: "fedavg"
+    staleness_tolerance: 3            # Increased from 2: cross-region delays
+
+    # Fault tolerance — relaxed for WAN
+    round_timeout_seconds: 300        # Increased from 120: WAN latency across regions
+    checkpoint_dir: "checkpoints/"
+
+  client:
+    epochs_per_round: 5
+    batch_size: 64
+    learning_rate: 0.001
+    optimizer: "adam"
+
+    # Fault tolerance — tuned for internet-routed connections
+    max_retries: 15                   # Increased from 10
+    retry_delay_seconds: 10           # Increased from 5
+    local_db_path: "~/.adf/"
+
+    gradient_compression:
+      enabled: true
+      method: "topk"
+      compression_ratio: 0.1
+
+    payload_compression:
+      enabled: true
+
+      algorithms:
+        - lz4
+        - zstd
+
+      cpu_usage_percent:
+        high_cpu_threshold: 85.0
+        moderate_cpu_threshold: 60.0
+
+      zstd_level:
+        moderate: 1
+        idle: 3
+
+    differential_privacy:
+      enabled: false
+      noise_multiplier: 1.0
+      max_grad_norm: 1.0
+
+  poisoning_detection:
+    enabled: true
+    zscore_threshold: 3.0
+    autoencoder_threshold: 0.8
+    validation_samples: 100
+
+# Distributed Tracing Configuration
+tracing:
+  jaeger:
+    host: "localhost"
+    port: 16686
+    query_port: 16686
+
+  collection:
+    time_window: 300
+    min_trace_length: 2
+    max_trace_age: 3600
+
+  graph:
+    update_interval: 60
+    edge_weight_decay: 0.95
+    min_edge_weight: 0.01
+    snapshot_interval: 300
+
+# Root Cause Analysis Configuration
+root_cause:
+  pagerank:
+    alpha: 0.85
+    max_iterations: 100
+    tolerance: 1.0e-6
+    personalization_weight: 0.7
+
+  classification:
+    propagation_threshold: 0.3
+    max_hops: 5
+    min_impact_score: 0.1
+
+  explanation:
+    max_chain_length: 10
+    confidence_threshold: 0.6
+
+# Adaptive Thresholding Configuration
+thresholding:
+  slo:
+    latency_p95_ms: 200
+    latency_p99_ms: 500
+    error_rate_threshold: 0.01
+    collection_interval: 60
+
+  rl_tuner:
+    algorithm: "qlearning"
+    learning_rate: 0.1
+    discount_factor: 0.95
+    epsilon: 0.1
+    epsilon_decay: 0.995
+    min_epsilon: 0.01
+
+    state_features:
+      - "current_threshold"
+      - "false_positive_rate"
+      - "false_negative_rate"
+      - "slo_violation_rate"
+
+    actions:
+      - -0.5
+      - -0.2
+      - -0.1
+      - 0.0
+      - 0.1
+      - 0.2
+      - 0.5
+      - 1.0
+
+    reward:
+      precision_weight: 0.5
+      recall_weight: 0.5
+      slo_compliance_weight: 0.1
+      false_positive_penalty: -5.0
+      false_negative_penalty: -5.0
+      slo_violation_penalty: 0.0
+
+# Coordinator Configuration
+coordinator:
+  server:
+    host: "0.0.0.0"
+    port: 50052
+    max_workers: 10
+
+  api:
+    host: "0.0.0.0"
+    port: 8080
+
+  health_check:
+    interval: 30
+    timeout: 10
+
+  event_buffer:
+    max_size: 10000
+    flush_interval: 5
+
+# Database Configuration — SQLite-only for t3.micro
+# PostgreSQL and Redis are disabled; the coordinator code
+# gracefully falls back to in-memory / SQLite stores.
+database:
+  type: "sqlite"
+  sqlite:
+    path: "/app/checkpoints/coordinator.db"
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "anomaly_detection"
+    user: "adf_user"
+    password: "adf_password"
+    pool_size: 5
+    max_overflow: 10
+
+  redis:
+    host: "redis_cache"
+    port: 6379
+    db: 0
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    metrics_path: "/metrics"
+
+  grafana:
+    enabled: false       # No Grafana on t3.micro
+
+  logging:
+    level: "INFO"
+    format: "json"
+    file: "logs/adf.log"
+    rotation: "100 MB"
+    retention: "7 days"  # Shorter retention for budget VMs
+
+# Experimental Configuration
+experiments:
+  data_generation:
+    num_services: 20
+    num_metrics_per_service: 17
+    duration_hours: 24
+    anomaly_injection_rate: 0.05
+
+    anomaly_types:
+      - spike
+      - drift
+      - oscillation
+      - level_shift
+      - missing_data
+
+  chaos:
+    network_latency_ms: 1000
+    cpu_stress_percentage: 80
+    memory_stress_mb: 512
+    failure_rate: 0.1
+
+  benchmark:
+    num_trials: 10
+    warm_up_time: 60
+    test_duration: 600
+    results_dir: "results"

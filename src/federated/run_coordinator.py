@@ -9,6 +9,8 @@ from utils.config import get_config
 from utils.logger import get_logger
 from utils.db import init_db
 from federated.federated_coordinator import FederatedCoordinator
+from coordinator.main import app as flask_app
+from utils.metrics import get_metrics
 
 
 logger = get_logger(__name__)
@@ -41,6 +43,22 @@ def main() -> None:
         name='grpc-server',
     )
     server_thread.start()
+
+    # Start Flask API server
+    api_port = int(config.get('coordinator.api.port', 8080))
+    api_thread = threading.Thread(
+        target=lambda: flask_app.run(host='0.0.0.0', port=api_port, debug=False, use_reloader=False),
+        daemon=True,
+        name='api-server',
+    )
+    api_thread.start()
+
+    # Start metrics server
+    try:
+        get_metrics().start()
+        logger.info("Metrics server started")
+    except Exception as exc:
+        logger.warning(f"Could not start metrics server: {exc}")
 
     # Graceful shutdown
     stop_event = threading.Event()

@@ -1,0 +1,215 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "refresh": "1s",
+  "schemaVersion": 38,
+  "tags": [
+    "thesis",
+    "demo"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "2. Root Cause Analysis Engine (Deep Dive)",
+  "uid": "dash-rca",
+  "version": 1,
+  "panels": [
+    {
+      "type": "table",
+      "title": "RCA Inference: Exact Explanation Metadata (Live Traces)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "rca_explanation_metadata",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "instance": true,
+              "job": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Cascade Severity Engine",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "rca_cascade_severity",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "instance": true,
+              "job": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "PageRank Scores per Service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 14
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "rca_pagerank_score",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Impact Scores (Downstream Topology)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 14
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "rca_impact_score",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "RCA Confidence Score",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "rca_explanation_confidence",
+          "legendFormat": "{{service}} ({{type}})"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "RCA Inference Latency (ms)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 24
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "rca_analysis_time_ms"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Causal Graph Edges",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 24
+      },
+      "id": 7,
+      "targets": [
+        {
+          "expr": "cg_num_edges"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Causal Graph Nodes",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 24
+      },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "cg_num_nodes"
+        }
+      ]
+    }
+  ]
+}

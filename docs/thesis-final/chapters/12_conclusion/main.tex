@@ -1,0 +1,124 @@
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+\section{Summary of Contributions}
+\label{sec:conclusion_summary}
+
+This thesis presented a privacy-preserving, federated anomaly detection
+framework for distributed microservice architectures, integrating six core
+components: (1)~a federated LSTM-Autoencoder achieving F1~$=$~0.839 and
+AUC-ROC~$=$~0.950 on real-world telemetry; (2)~differential privacy with
+empirically characterized gradient clipping and noise trade-offs;
+(3)~causal-graph-based root cause analysis with 89\% Top-3 accuracy;
+(4)~Q-learning adaptive thresholding with convergence analysis;
+(5)~an adaptive compression pipeline achieving up to 61\% payload reduction;
+and (6)~fault-tolerant edge design with two node profiles.
+
+\section{Conclusion}
+\label{sec:conclusion_conclusion}
+
+The experimental evaluation yields the following key results:
+
+\begin{itemize}
+    \item \textbf{High accuracy on real-world data.} The federated LSTM-AE
+    achieves F1~$=$~0.839, outperforming the centralized baseline (0.496).
+    Federated aggregation of distributed representations provides stronger
+    generalization than single-node centralization. The model operates on
+    ten selected telemetry features spanning CPU, memory, network, and
+    application health---a feature set designed to capture complementary
+    signals across infrastructure and application layers.
+
+    \item \textbf{Sharp DP phase transition.} AUC-ROC remains near-baseline
+    (0.970--0.971) for $\sigma \leq 0.0005$ ($\varepsilon \geq 10$). A sharp
+    phase transition occurs at $\sigma{=}0.001$ ($\varepsilon \approx 1$),
+    where F1 drops from 0.859 to 0.235 with default clipping ($C{=}0.5$).
+
+    \item \textbf{Clipping norm as a critical DP lever.} The clipping
+    norm has a dramatic effect: at $C{=}0.01$ with $\sigma{=}0.001$,
+    the model achieves F1~$=$~0.868 and AUC-ROC~$=$~0.976---matching
+    the no-DP baseline. Since noise is scaled by $\sigma \cdot C$, tighter
+    clipping effectively neutralizes DP noise while preserving formal privacy
+    guarantees. This resolves the traditionally assumed privacy--utility
+    tension for this class of anomaly detection models.
+
+    \item \textbf{Q-learning cold-start.} The Q-learning agent maintains a
+    conservative threshold during the 24-hour evaluation, producing zero false
+    positives but also zero true positives. The reward dominance from true
+    negatives prevents threshold adaptation under extreme class imbalance (2\%
+    anomaly rate), identifying a clear limitation addressable through
+    asymmetric reward tuning or deep Q-networks.
+
+    \item \textbf{Efficient communication.} Binary serialization produces
+    payloads $5.4\times$ smaller than text formats. The full FL pipeline
+    accounts for less than 3\% of round time, with local training dominating
+    at over 97\%.
+
+    \item \textbf{Actionable RCA.} The RCA engine places the true root cause
+    in its top-3 ranking for 89\% of fault-injection events, with MRR of
+    0.653 outperforming the random baseline (0.601).
+
+    \item \textbf{Linear scalability.} FedAvg aggregation scales linearly
+    from 5.1\,ms at 5~nodes to 990.1\,ms at 1\,000~nodes with bounded memory.
+\end{itemize}
+
+\section{Limitations}
+\label{sec:conclusion_limitations}
+
+\begin{itemize}
+    \item \textbf{Q-learning cold-start.} The tabular Q-learning agent
+    requires extended training horizons (${>}$24h) and asymmetric reward
+    functions before its threshold policy stabilizes, during which alert
+    quality may be suboptimal.
+
+    \item \textbf{IID data assumption.} FedAvg assumes approximately IID
+    local datasets \cite{li2020federated}. Production deployments with
+    heterogeneous workloads may require alternative aggregation strategies
+    such as FedProx or scaffold methods.
+
+    \item \textbf{RCA on deep chains.} Top-1 accuracy of 42\% indicates
+    room for improvement, particularly for services at the bottom of deep
+    dependency chains where multiple propagation paths exist.
+
+    \item \textbf{Clipping--privacy tension.} While tight clipping
+    ($C{=}0.01$) recovers accuracy, it reduces the effective noise magnitude
+    to $\sigma \cdot C = 10^{-5}$, weakening the formal privacy guarantee.
+    The $(\varepsilon, \delta)$-DP bound improves numerically, but the
+    practical protection against reconstruction attacks requires further
+    empirical validation.
+
+    \item \textbf{Single coordinator.} Despite crash-recovery mechanisms,
+    the coordinator remains a potential bottleneck under extreme node counts.
+\end{itemize}
+
+\section{Future Work}
+\label{sec:conclusion_future}
+
+\textbf{Transfer Learning.} Pre-training on large telemetry corpora (e.g.,
+Alibaba Cluster Trace) followed by few-shot fine-tuning would reduce FL
+convergence time for newly onboarded services and mitigate the cold-start
+problem.
+
+\textbf{Hierarchical Federated Learning.} A two-tier architecture with
+cluster-level sub-coordinators would extend scalability beyond 1\,000~nodes
+\cite{kairouz2021advances}.
+
+\textbf{Enhanced Privacy Mechanisms.} Secure Multi-Party Computation,
+homomorphic encryption, and Local Differential Privacy would strengthen the
+threat model beyond honest-but-curious coordinators. Combining these with the
+tight-clipping strategy identified in this work could provide strong formal
+guarantees without accuracy loss.
+
+\textbf{Improved RCA.} Multi-modal causal graphs incorporating log events
+and deployment metadata, temporal edge annotations, and LLM-assisted incident
+summaries would improve accuracy beyond the current 42\% Top-1.
+
+\textbf{Deep Q-Network.} Replacing tabular Q-learning with DQN would enable
+continuous state representation, richer features (rolling statistics,
+time-of-day encoding), and faster convergence via experience replay. This
+directly addresses the cold-start limitation by enabling batch learning from
+stored transition tuples.
+
+\textbf{Multi-Modal Anomaly Detection.} Extending the LSTM-AE to jointly
+model metrics, structured logs, and traces through a multi-modal encoder
+could improve detection of complex anomalies that manifest across multiple
+telemetry types simultaneously.

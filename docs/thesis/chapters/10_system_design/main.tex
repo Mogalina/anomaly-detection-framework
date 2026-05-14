@@ -1,0 +1,492 @@
+\chapter{System Design and Implementation}
+\label{ch:system_design}
+
+\section{End-to-End System Architecture}
+\label{sec:design_architecture}
+
+\subsection{High-Level Architecture Overview}
+\label{subsec:design_arc_overview}
+
+The framework follows a hub-and-spoke topology in which a central coordinator
+orchestrates federated learning, root cause analysis, and model versioning,
+while distributed edge agents perform local telemetry collection, inference,
+and model training. Figure~\ref{fig:architecture_overview} presents the
+high-level architecture.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm and 2.0cm,
+    box/.style={draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm,
+                align=center, font=\small},
+    edge_box/.style={box, fill=blue!8},
+    coord_box/.style={box, fill=orange!10},
+    data_box/.style={box, fill=green!8},
+    arrow/.style={-{Stealth[length=2.5mm]}, thick},
+]
+% Edge Nodes
+\node[edge_box] (e1) {Edge Agent 1\\[-2pt]\scriptsize LSTM-AE + Q-Thresh};
+\node[edge_box, below=0.6cm of e1] (e2) {Edge Agent 2\\[-2pt]\scriptsize LSTM-AE + Q-Thresh};
+\node[edge_box, below=0.6cm of e2] (e3) {Edge Agent $K$\\[-2pt]\scriptsize LSTM-AE + Q-Thresh};
+
+% Coordinator
+\node[coord_box, right=3.5cm of e2] (coord) {Central\\Coordinator};
+\node[coord_box, above=0.7cm of coord] (fl) {FL Aggregator\\[-2pt]\scriptsize FedAvg + DP};
+\node[coord_box, below=0.7cm of coord] (rca) {RCA Engine\\[-2pt]\scriptsize PageRank};
+
+% Data stores
+\node[data_box, right=2.5cm of coord] (db) {Model Registry\\[-2pt]\scriptsize SQLite / WAL};
+\node[data_box, right=2.5cm of fl] (graph) {Causal Graph\\[-2pt]\scriptsize NetworkX};
+
+% Traces
+\node[data_box, below=0.7cm of rca] (traces) {Trace Collector\\[-2pt]\scriptsize OpenTelemetry};
+
+% Edges -> Coordinator
+\draw[arrow] (e1.east) -- node[above, font=\scriptsize, sloped] {gRPC updates} (fl.west);
+\draw[arrow] (e2.east) -- (coord.west);
+\draw[arrow] (e3.east) -- node[below, font=\scriptsize, sloped] {anomaly events} (rca.west);
+
+% Coordinator internals
+\draw[arrow] (fl) -- (coord);
+\draw[arrow] (rca) -- (coord);
+\draw[arrow] (coord) -- (db);
+\draw[arrow] (fl) -- (graph);
+\draw[arrow] (traces) -- (rca);
+
+% Broadcast back
+\draw[arrow, dashed] (coord.west) -- node[above, font=\scriptsize, sloped] {global model} (e2.east);
+\end{tikzpicture}
+\caption{High-level architecture of the distributed anomaly detection framework.
+         Edge agents communicate with the central coordinator via gRPC.
+         Arrows indicate primary data flows; dashed lines indicate broadcast.}
+\label{fig:architecture_overview}
+\end{figure}
+
+The architecture comprises five principal subsystems:
+
+\begin{enumerate}
+    \item \textbf{Edge Agents}: Deployed alongside each monitored microservice.
+    Each agent collects local telemetry, runs inference using a local LSTM-AE
+    model, applies the adaptive Q-learning threshold, and participates in
+    federated training rounds.
+
+    \item \textbf{Central Coordinator}: Orchestrates FL rounds, hosts the RCA
+    engine, and manages the global model registry. It is designed as a
+    stateless process backed by durable storage, enabling active-passive
+    failover (Chapter~\ref{ch:reliability}).
+
+    \item \textbf{FL Aggregator}: Receives compressed model updates from edge
+    agents, validates them, and computes the FedAvg-aggregated global model.
+    Differential privacy noise is injected at the client side before
+    transmission (Chapter~\ref{ch:federated_learning}).
+
+    \item \textbf{RCA Engine}: Maintains the causal dependency graph and, upon
+    receiving batched anomaly events, ranks candidate root causes using the
+    scoring approach described in Chapter~\ref{ch:root_cause_analysis}.
+
+    \item \textbf{Trace Collector}: Ingests distributed traces from
+    OpenTelemetry exporters and continuously updates the causal graph with
+    inter-service dependency observations.
+\end{enumerate}
+
+\subsection{How Components Fit Together}
+\label{subsec:design_arc_integration}
+
+A complete detection cycle proceeds through the following stages:
+
+\begin{enumerate}
+    \item \textbf{Metric Collection.} The edge agent scrapes local metrics
+    (CPU, memory, latency, error rate) at a configurable interval (default
+    10\,s) and writes them into a sliding-window buffer of length $W=50$.
+
+    \item \textbf{Inference.} The LSTM-AE processes the current window and
+    outputs a reconstruction error $e_t^{(i)}$.
+
+    \item \textbf{Threshold Decision.} The per-service Q-learning threshold
+    $\tau_t^{(i)}$ is compared against $e_t^{(i)}$. If exceeded, the agent
+    emits an anomaly event to the coordinator.
+
+    \item \textbf{RCA Query.} The coordinator batches anomaly events within a
+    60\,s window and invokes the RCA engine. The engine classifies anomalous
+    services as root causes or propagated anomalies and returns a ranked list.
+
+    \item \textbf{Alert Enrichment.} The RCA ranking, propagation paths, and
+    graph metadata are attached to the alert and forwarded to the alerting
+    layer (PagerDuty, Slack, or webhook).
+
+    \item \textbf{Federated Learning.} In a separate background loop, the
+    coordinator schedules FL rounds. Edge agents train locally, apply gradient
+    clipping and optional DP noise, compress the update, and transmit it via
+    gRPC. The coordinator aggregates updates using FedAvg and broadcasts the
+    new global model.
+
+    \item \textbf{Threshold Adaptation.} After each detection decision, the
+    outcome (TP/FP/FN/TN) is fed back to the Q-learning agent, which
+    periodically adjusts the threshold via the Bellman update
+    (Chapter~\ref{ch:adaptive_thresholding}).
+\end{enumerate}
+
+\section{Data Flow}
+\label{sec:design_dataflow}
+
+\subsection{Metric Ingestion Pipeline}
+\label{subsec:design_ingestion}
+
+Each edge agent runs a lightweight metric collector that interfaces with
+Prometheus exporters or StatsD receivers deployed alongside the target
+microservice. Raw metrics are buffered in a fixed-capacity ring buffer (default
+1\,000 observations) and preprocessed as follows:
+
+\begin{enumerate}
+    \item \textbf{Normalization.} Each feature is z-score normalized using a
+    running mean and standard deviation computed over the last $N=500$
+    observations.
+
+    \item \textbf{Windowing.} The normalized time series is segmented into
+    overlapping sliding windows of length $W=50$ with a stride of~1.
+
+    \item \textbf{Tensor Construction.} Each window is reshaped into a
+    three-dimensional PyTorch tensor of shape
+    $(\text{batch}=1, W, \text{features})$ for input to the LSTM-AE.
+\end{enumerate}
+
+\subsection{Anomaly Detection Pipeline}
+\label{subsec:design_detection_pipeline}
+
+The anomaly detection pipeline operates per-window as follows:
+
+\begin{enumerate}
+    \item The LSTM-AE encoder maps the input window $\mathbf{x} \in
+    \mathbb{R}^{W \times F}$ to a latent representation via a two-layer LSTM
+    with hidden size~64.
+
+    \item The decoder reconstructs $\hat{\mathbf{x}}$ from the latent state.
+
+    \item The reconstruction error is computed as the mean absolute error
+    reduced over the sequence and feature dimensions:
+    $e = \frac{1}{WF}\sum_{t,f}|x_{t,f} - \hat{x}_{t,f}|$.
+
+    \item The error is compared against the adaptive threshold
+    $\tau_t^{(i)}$. If $e > \tau_t^{(i)}$, an anomaly event is emitted.
+\end{enumerate}
+
+Inference latency is approximately 0.07\,ms per window on CPU
+(Section~\ref{sec:eval_detection}), ensuring that real-time detection does not
+bottleneck the metric collection loop.
+
+\subsection{Federated Learning Pipeline}
+\label{subsec:design_fl_pipeline}
+
+Each FL round follows the pipeline illustrated below.
+
+\begin{enumerate}
+    \item \textbf{Round Scheduling.} The coordinator initiates a round every
+    $T_{\text{round}}$ seconds (default 300\,s) or after receiving a
+    configurable number of new local training samples.
+
+    \item \textbf{Local Training.} Each participating edge agent trains for
+    $E=5$ local epochs using the Adam optimiser ($\text{lr}=10^{-3}$,
+    batch size~64) on its local dataset.
+
+    \item \textbf{DP Noise Injection.} If differential privacy is enabled,
+    per-sample gradients are clipped to norm $C=1.0$ and Gaussian noise
+    $\mathcal{N}(0, \sigma^2 C^2\mathbf{I})$ is added, where
+    $\sigma$ is the calibrated noise multiplier corresponding to the
+    desired privacy budget $\varepsilon$.
+
+    \item \textbf{Serialization.} The model state dictionary is serialized
+    using \texttt{torch.save()} (binary) or Protocol Buffers for
+    cross-language interoperability.
+
+    \item \textbf{Compression.} The serialized payload is compressed using the
+    adaptive compression controller: Zstd is selected when CPU utilization is
+    below 80\%, and LZ4 is selected otherwise
+    (Section~\ref{subsec:eval_adaptive_compression}).
+
+    \item \textbf{Transmission.} The compressed payload is uploaded to the
+    coordinator via the \texttt{SubmitUpdate} gRPC endpoint.
+
+    \item \textbf{Aggregation.} The coordinator computes the FedAvg-weighted
+    average of received updates and persists the new global model.
+
+    \item \textbf{Broadcast.} Edge agents poll for the updated model via
+    \texttt{GetGlobalModel} and atomically swap their local weights.
+\end{enumerate}
+
+\subsection{Root Cause Analysis Pipeline}
+\label{subsec:design_rca_pipeline}
+
+The RCA pipeline connects trace ingestion to alert enrichment:
+
+\begin{enumerate}
+    \item \textbf{Trace Ingestion.} The Trace Collector receives spans from
+    OpenTelemetry or Jaeger exporters and extracts parent--child
+    inter-service call records.
+
+    \item \textbf{Dependency Graph Update.} Each call record updates the
+    corresponding edge weight in the {\texttt{CausalGraph}} using exponential
+    decay (Section~\ref{subsec:rca_dependency_graph}).
+
+    \item \textbf{Anomaly Event Seed.} When anomaly events arrive, the
+    affected services are marked as anomalous in the graph.
+
+    \item \textbf{Root Cause Scoring.} The \texttt{RootCauseAnalyzer}
+    classifies anomalous services as root causes or propagated anomalies
+    based on upstream dependency analysis and impact scoring.
+
+    \item \textbf{Alert Enrichment.} The top-$N$ ranked candidates, their
+    scores, and explanatory propagation paths are attached to the anomaly
+    alert.
+\end{enumerate}
+
+\section{Component Design}
+\label{sec:design_components}
+
+\subsection{Edge Node Agent}
+\label{subsec:design_edge_agent}
+
+The edge agent is a single-process Python application with three concurrent
+execution loops:
+
+\begin{itemize}
+    \item \textbf{Inference Loop} (main thread): Continuously reads from the
+    metric buffer, runs LSTM-AE inference, applies the Q-learning threshold,
+    and emits anomaly events.
+
+    \item \textbf{FL Training Loop} (background thread): Triggered by FL round
+    notifications. Downloads the global model, trains locally, applies DP, and
+    uploads the compressed update.
+
+    \item \textbf{Threshold Adaptation Loop}: Every 10~observations, invokes
+    \texttt{ThresholdTuner.tune\_threshold()} to adjust the service-specific
+    threshold.
+\end{itemize}
+
+The agent is configured via environment variables and a \texttt{config.yaml}
+file, supporting two profiles: \emph{lightweight} (stateless) and
+\emph{standard} (persistent SQLite cache), as described in
+Chapter~\ref{ch:federated_learning}.
+
+\subsection{Central Coordinator}
+\label{subsec:design_coordinator}
+
+The coordinator exposes a gRPC service with the following endpoints:
+
+\begin{itemize}
+    \item \texttt{RegisterNode}: Registers an edge agent with its node
+    profile, hardware capabilities, and initial sample count.
+
+    \item \texttt{SubmitUpdate}: Receives a compressed model update. The
+    coordinator decompresses, validates (optional poisoning detection), and
+    buffers the update.
+
+    \item \texttt{GetGlobalModel}: Returns the latest global model checkpoint
+    along with the current round number and compression metadata.
+
+    \item \texttt{ReportAnomaly}: Receives anomaly events from edge agents
+    for RCA processing.
+\end{itemize}
+
+Persistent state---including the model registry (last $N=10$ checkpoints), the
+causal graph snapshots, and the FL round log---is stored in an SQLite database
+with Write-Ahead Logging (WAL) enabled for crash-safe durability.
+
+\subsection{Trace Collector}
+\label{subsec:design_trace_collector}
+
+The Trace Collector is an asynchronous module that:
+
+\begin{enumerate}
+    \item Subscribes to OpenTelemetry OTLP/gRPC or Jaeger Thrift trace
+    streams.
+
+    \item Parses spans into inter-service dependency records.
+
+    \item Feeds records to the \texttt{CausalGraph.update\_from\_traces()}
+    method, which updates edge weights, applies decay, and prunes weak edges.
+
+    \item Triggers periodic graph snapshots (every 300\,s) for persistence.
+\end{enumerate}
+
+\subsection{Alerting and Dashboarding}
+\label{subsec:design_alerting}
+
+Alerts are structured JSON payloads containing:
+
+\begin{itemize}
+    \item \texttt{service}: Affected service name.
+    \item \texttt{anomaly\_score}: Reconstruction error value.
+    \item \texttt{threshold}: Current adaptive threshold.
+    \item \texttt{rca\_candidates}: Ranked list of root-cause services with
+    impact scores.
+    \item \texttt{propagation\_paths}: Explanatory dependency paths.
+    \item \texttt{timestamp}: Detection timestamp.
+\end{itemize}
+
+Alerts are delivered via configurable sinks: PagerDuty, Slack webhooks, or
+generic HTTP endpoints. A Grafana dashboard provides real-time visualization of
+anomaly scores, FL round status, causal graph topology, and threshold history
+per service.
+
+\section{System Orchestration}
+\label{sec:design_orchestration}
+
+\subsection{Kubernetes Deployment}
+\label{subsec:design_k8s}
+
+The framework is designed for deployment on Kubernetes, with the following
+resource topology:
+
+\begin{itemize}
+    \item \textbf{Coordinator}: Deployed as a \texttt{Deployment} with a
+    single replica (active-passive failover via leader election). A
+    \texttt{PersistentVolumeClaim} provides durable storage for the SQLite
+    database. Horizontal Pod Autoscaling (HPA) is configured to scale based
+    on gRPC request rate if the coordinator is deployed as a stateless
+    service backed by an external database.
+
+    \item \textbf{Edge Agents}: Deployed as a \texttt{DaemonSet} to ensure one
+    agent per monitored node, or as a \texttt{Deployment} with pod anti-affinity
+    to co-locate agents with target microservice pods.
+
+    \item \textbf{Service Discovery}: Edge agents discover the coordinator via
+    Kubernetes DNS \\ (\texttt{coordinator-svc.namespace.svc.cluster.local}).
+
+    \item \textbf{Configuration}: FL hyperparameters, privacy budget, and
+    compression settings are supplied via \texttt{ConfigMaps}. Secrets (e.g.,
+    gRPC TLS certificates) are stored in Kubernetes \texttt{Secrets}.
+\end{itemize}
+
+\subsection{Configuration Management}
+\label{subsec:design_config}
+
+All runtime parameters are managed through a hierarchical
+\texttt{config.yaml} file, structured as follows:
+
+\begin{verbatim}
+model:
+  input_size: 10
+  hidden_size: 64
+  num_layers: 2
+  dropout: 0.2
+federated:
+  rounds: 100
+  local_epochs: 5
+  min_clients: 3
+  round_timeout_s: 120
+privacy:
+  enabled: true
+  epsilon: 1.0
+  delta: 1e-5
+  clip_norm: 1.0
+compression:
+  default_algorithm: zstd
+  cpu_threshold: 80
+thresholding:
+  learning_rate: 0.1
+  discount_factor: 0.95
+  epsilon: 0.1
+\end{verbatim}
+
+The configuration module supports live reload: the coordinator watches the
+config file for changes and applies non-destructive updates (e.g., adjusting
+$\varepsilon$ or compression level) without restarting the process.
+
+\subsection{Managing Data Flow and Scheduling}
+\label{subsec:design_scheduling}
+
+FL rounds are triggered by one of two policies:
+
+\begin{itemize}
+    \item \textbf{Time-based}: The coordinator initiates a new round every
+    $T_{\text{round}}$ seconds (default 300\,s). This is suitable for
+    steady-state operation.
+
+    \item \textbf{Event-based}: A round is triggered after a configurable
+    number of new local training samples ($M=1000$) have been collected across
+    registered nodes. This adaptive policy avoids unnecessary rounds during
+    low-traffic periods.
+\end{itemize}
+
+The coordinator maintains a round log recording the start time, participating
+nodes, aggregation result, and round duration. Overlapping rounds are
+prevented by a round-state lock: if a round is in progress, new triggers are
+deferred until the current round completes or times out.
+
+\section{Implementation Details}
+\label{sec:design_implementation}
+
+\subsection{Technology Stack}
+\label{subsec:design_stack}
+
+Table~\ref{tab:tech_stack} summarizes the technology stack.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{0.28\textwidth}|p{0.62\textwidth}|}
+        \hline
+        \textbf{Component} & \textbf{Technology} \\
+        \hline
+        Language & Python 3.12 \\
+        \hline
+        ML Framework & PyTorch 2.x (LSTM-AE, DP noise injection) \\
+        \hline
+        RPC Framework & gRPC (grpcio + protobuf) \\
+        \hline
+        Compression & python-lz4, zstandard \\
+        \hline
+        Graph Library & NetworkX (causal graph, BFS, impact scoring) \\
+        \hline
+        Persistent Storage & SQLite with WAL mode (via Python \texttt{sqlite3}) \\
+        \hline
+        Caching / Buffering & Redis (optional, for update queuing) \\
+        \hline
+        Monitoring & Prometheus client, OpenTelemetry SDK \\
+        \hline
+        Container Runtime & Docker \\
+        \hline
+        Orchestration & Kubernetes (Minikube for local development) \\
+        \hline
+        Chaos Engineering & Chaos Mesh (fault injection for benchmarking) \\
+        \hline
+        Load Testing & Locust (traffic generation) \\
+        \hline
+    \end{tabular}
+    \caption{Technology stack used in the framework implementation}
+    \label{tab:tech_stack}
+\end{table}
+
+\subsection{Key Implementation Decisions}
+\label{subsec:design_decisions}
+
+Several design decisions were made with explicit rationale:
+
+\begin{itemize}
+    \item \textbf{SQLite over in-memory stores.} SQLite with WAL mode provides
+    ACID-compliant persistence with zero-configuration deployment. Unlike Redis
+    or PostgreSQL, it requires no external process, making it suitable for
+    single-coordinator deployments. WAL mode ensures that readers and writers
+    do not block each other, and that in-progress writes survive crashes
+    without corrupting the database \cite{ongaro2014raft}.
+
+    \item \textbf{PyTorch over TensorFlow.} PyTorch provides imperative
+    execution, which simplifies debugging of the LSTM-AE training loop and
+    gradient manipulation (clipping, noise injection) required for differential
+    privacy. Additionally, PyTorch supports Metal Performance Shaders (MPS)
+    for Apple Silicon acceleration, enabling development and testing on macOS
+    hardware.
+
+    \item \textbf{gRPC over REST.} gRPC provides strongly-typed service
+    contracts via Protocol Buffers, binary-encoded payloads, HTTP/2
+    multiplexing, and bidirectional streaming---all of which reduce latency
+    and connection overhead compared to JSON-over-HTTP REST endpoints
+    \cite{grpc2016whitepaper}.
+
+    \item \textbf{Zstd as default compression with LZ4 fallback.} Benchmark
+    results (Section~\ref{subsec:eval_compression}) demonstrate that Zstd
+    achieves a 10\% payload reduction on binary model weights and up to 61\%
+    on JSON payloads, at the cost of higher CPU usage. The adaptive controller
+    automatically switches to LZ4 when CPU utilization exceeds 80\%, preserving
+    compression benefits without impacting inference performance on
+    resource-constrained nodes.
+\end{itemize}

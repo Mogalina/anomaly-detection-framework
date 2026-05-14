@@ -1,5 +1,8 @@
 from .models import LSTMAnomalyDetector, AutoEncoder
-from .edge_detector import EdgeDetector
+try:
+    from .edge_detector import EdgeDetector
+except ImportError:
+    pass
 
 __all__ = [
     'LSTMAnomalyDetector',

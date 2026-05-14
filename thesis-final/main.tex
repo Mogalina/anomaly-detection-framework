@@ -1,0 +1,171 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{newtxtext,newtxmath} 
+\usepackage[varqu,varl]{zi4}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{biblatex}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning, arrows.meta}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    showstringspaces=false,
+    commentstyle=\color{green!60!black},
+    keywordstyle=\color{blue},
+    stringstyle=\color{purple},
+}
+
+\geometry{
+    a4paper,
+    total={170mm,257mm},
+    left=20mm,
+    right=20mm,
+    top=25mm,
+    bottom=25mm,
+}
+
+\setstretch{1.5}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=green!50!black,
+    urlcolor=cyan!60!black,
+}
+
+\addbibresource{references.bib}
+
+% Title page
+\makeatletter
+\newcommand{\specialization}[1]{\gdef\@specialization{#1}}
+\newcommand{\supervisor}[1]{\gdef\@supervisor{#1}}
+\makeatother
+
+\specialization{Babeș-Bolyai University of Cluj-Napoca\\Faculty of Mathematics and Computer Science\\Computer Science Specialization}
+\title{A Privacy-Preserving, Federated Anomaly Detection Framework for Distributed Microservice Architectures}
+\author{Moghioroș Eric}
+\date{\today}
+\supervisor{Prof. Dr. Sergiu Adrian Dărăbanț}
+
+\begin{document}
+
+\makeatletter
+\begin{titlepage}
+    \centering
+    {\scshape \large \@specialization \par}
+    \vspace{3cm}
+    {\huge\bfseries \@title \par}
+    \vspace{2cm}
+    {\large Bachelor's Thesis \par}
+    {\large Submitted in partial fulfilment of the requirements for the\\degree of Bachelor of Science in Computer Science \par}
+    \vfill
+    \begin{minipage}{0.48\textwidth}
+        \begin{flushleft} \large
+            \textit{Scientific Coordinator}\\
+            \@supervisor
+        \end{flushleft}
+    \end{minipage}
+    \begin{minipage}{0.48\textwidth}
+        \begin{flushright} \large
+            \textit{Student}\\
+            \@author
+        \end{flushright}
+    \end{minipage}
+    \vfill
+    {\large \@date \par}
+\end{titlepage}
+
+\begin{titlepage}
+    \centering
+    {\scshape \large Universitatea Babeș-Bolyai din Cluj-Napoca\\Facultatea de Matematică și Informatică\\Specializarea Informatică \par}
+    \vspace{3cm}
+    {\huge\bfseries Un Cadru Federat de Detecție a Anomaliilor cu Păstrarea Confidențialității pentru Arhitecturi Distribuite de Microservicii \par}
+    \vspace{2cm}
+    {\large Lucrare de Licență \par}
+    \vfill
+    \begin{minipage}{0.48\textwidth}
+        \begin{flushleft} \large
+            \textit{Coordonator Științific}\\
+            \@supervisor
+        \end{flushleft}
+    \end{minipage}
+    \begin{minipage}{0.48\textwidth}
+        \begin{flushright} \large
+            \textit{Absolvent}\\
+            \@author
+        \end{flushright}
+    \end{minipage}
+    \vfill
+    {\large \@date \par}
+\end{titlepage}
+\makeatother
+
+\clearpage
+
+% Abstract
+\begin{abstract}
+\noindent
+Modern distributed systems, composed of microservices and heterogeneous
+components, are increasingly complex and prone to performance anomalies that can
+compromise reliability and service quality. This thesis presents a comprehensive
+anomaly detection framework designed for large-scale distributed systems,
+integrating real-time edge detection via an LSTM-Autoencoder, federated learning
+for collaborative model training without centralizing raw telemetry,
+causal graph-based root cause analysis, and adaptive Q-learning thresholding.
+By combining localized anomaly detection at the edge with global model
+aggregation via the FedAvg algorithm, the framework enhances detection accuracy
+while preserving data privacy through Differential Privacy (DP-SGD).
+Experimental evaluation on the Server Machine Dataset (SMD), Train-Ticket, and
+Alibaba-derived topologies demonstrates that the federated LSTM-AE achieves
+competitive detection fidelity, the DP mechanism exposes a sharp
+privacy--utility phase transition governed by clipping norm, and causal RCA
+provides operationally useful root-cause rankings on small topologies. The
+Q-learning threshold controller reduces final alert volume but exhibits
+cold-start instability, motivating future reward-shaping improvements. The
+thesis reports both positive results and identified limitations to guide future
+work.
+\end{abstract}
+
+\clearpage
+
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+% Chapters
+\include{chapters/01_introduction/main}
+\include{chapters/02_background_and_related_work/main}
+\include{chapters/03_lstm_autoencoder_model_architecture/main}
+\include{chapters/04_framework_methodology/main}
+\include{chapters/05_system_design_and_implementation/main}
+\include{chapters/06_experimental_evaluation/main}
+\include{chapters/07_conclusion_and_future_work/main}
+
+\printbibliography[heading=bibintoc, title={References}]
+
+\end{document}

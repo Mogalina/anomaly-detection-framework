@@ -1,0 +1,210 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "refresh": "1s",
+  "schemaVersion": 38,
+  "tags": [
+    "thesis",
+    "demo"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "1. Thesis Command Center",
+  "uid": "dash-command-center",
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "System Status",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "NORMAL"
+                },
+                "1": {
+                  "color": "red",
+                  "text": "ANOMALY DETECTED"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "smd_is_anomaly"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Connections",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(ms_active_connections)"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Federated Round",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "fl_current_round"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Incidents",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "cumulative_alerts"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Global Anomaly Detection",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 16,
+        "x": 0,
+        "y": 5
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "smd_reconstruction_error",
+          "legendFormat": "Error"
+        },
+        {
+          "expr": "smd_anomaly_threshold",
+          "legendFormat": "Threshold"
+        }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Top RCA Scores (Combined Impact+PageRank)",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 5
+      },
+      "id": 6,
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "expr": "topk(5, rca_combined_score)",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "state-timeline",
+      "title": "Microservice Latency Heatmap",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 7,
+      "options": {
+        "mergeValues": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "ms_latency_ms",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    }
+  ]
+}

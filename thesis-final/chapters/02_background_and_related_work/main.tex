@@ -1,0 +1,231 @@
+\chapter{Background and Related Work}
+\label{ch:background}
+
+\section{Distributed Microservice Systems}
+\label{sec:bg_distributed_systems}
+
+A distributed system is a set of autonomous computing nodes that cooperate
+through message passing and appear as a coherent system to users
+\cite{tanenbaum2007distributed, coulouris2011distributed}. Microservices apply
+this principle at the application level by splitting a system into small
+services, each owned, deployed, and scaled independently
+\cite{newman2015building, dragoni2017microservices}. The same decomposition
+that enables rapid deployment also creates operational complexity: service
+instances are ephemeral, dependencies change frequently, and a user-visible
+symptom may be several network calls away from its original cause.
+
+Reliability in such systems is constrained by partial failure. The CAP theorem,
+introduced by Brewer and formalized by Gilbert and Lynch, states that a
+distributed data store cannot simultaneously guarantee consistency,
+availability, and partition tolerance under network partitions
+\cite{brewer2000towards, gilbert2002brewer}. Monitoring systems usually
+prioritize availability and partition tolerance: local anomaly detection should
+continue even when the global coordinator is temporarily unreachable. This
+choice accepts short-lived model or graph staleness in exchange for continuous
+visibility.
+\label{subsec:bg_cap}
+
+Observability is built from metrics, logs, and traces
+\cite{kalloniatis2020microservices_observability}. Metrics describe numerical
+health indicators such as CPU utilization, latency percentiles, memory pressure,
+request rate, and error rate. Logs provide event-level context. Traces reconstruct
+request paths across service boundaries and make dependency-aware diagnosis
+possible \cite{sigelman2010dapper}. An effective anomaly detection framework
+must combine these signals: metrics trigger detection, traces provide topology,
+and historical behavior provides the baseline against which abnormality is
+defined.
+
+Existing observability platforms typically centralize raw telemetry for
+analysis, which introduces bandwidth bottlenecks and privacy exposure at scale.
+This thesis addresses that limitation through edge-local detection
+(\S\ref{sec:method_lstm_ae}) and federated model training
+(\S\ref{sec:fl_architecture}), so that raw data remains at the source while
+model intelligence is shared.
+
+\section{Anomaly Detection for Telemetry}
+\label{sec:bg_anomaly}
+
+Classical anomaly detection uses static limits, z-scores, rolling statistics, or
+Exponentially Weighted Moving Averages (EWMA) \cite{basseville1993detection,
+chandola2009anomaly}. These approaches are inexpensive and interpretable, but
+they are weak under multivariate and non-stationary telemetry. A latency increase
+may be harmless during a traffic burst, but suspicious when coupled with memory
+growth and elevated downstream errors.
+
+Deep unsupervised models are widely used when labeled failures are scarce
+\cite{chalapathy2019deep, pang2021deep}. Autoencoders learn a compressed
+representation of normal data and use reconstruction error as an anomaly score.
+For a window $X \in \mathbb{R}^{T \times d}$ and reconstruction $\hat{X}$, the
+mean squared reconstruction loss is:
+
+\begin{equation}
+    \mathcal{L}_{\text{MSE}} =
+    \frac{1}{T d} \sum_{t=1}^{T}\sum_{j=1}^{d}
+    \left(X_{tj} - \hat{X}_{tj}\right)^2 .
+    \label{eq:bg_mse}
+\end{equation}
+
+Long Short-Term Memory (LSTM) networks are suitable for telemetry because they
+capture temporal dependencies more effectively than vanilla recurrent networks
+\cite{hochreiter1997long, malhotra2015lstm}. An LSTM-Autoencoder combines an
+LSTM encoder, a compact latent representation, and an LSTM decoder. Windows that
+do not match learned normal dynamics produce larger reconstruction errors, which
+can be converted into anomaly decisions through a threshold.
+
+However, most LSTM-based detectors assume centralized training or offline
+threshold calibration. This thesis embeds an LSTM-AE within a federated
+training loop (\S\ref{sec:fl_architecture}) and pairs it with adaptive
+Q-learning thresholding (\S\ref{sec:threshold_implementation}), addressing
+both limitations.
+
+\section{Edge and Federated Learning}
+\label{sec:bg_edge_fl}
+
+Edge computing places computation near the data source, reducing latency,
+bandwidth use, and raw-data exposure \cite{shi2016edge,
+satyanarayanan2017emergence}. In this thesis, each monitored service is paired
+with an edge agent that performs local preprocessing, LSTM-AE inference, and
+local training. The central coordinator aggregates models rather than raw
+telemetry.
+
+Federated learning (FL) trains a shared model across clients without centralizing
+their datasets \cite{mcmahan2017communication, kairouz2021advances}. Given
+clients $k=1,\dots,K$ with local datasets $\mathcal{D}_k$, the global objective
+is:
+
+\begin{equation}
+    \min_{\theta} F(\theta) =
+    \sum_{k=1}^{K}
+    \frac{|\mathcal{D}_k|}{\sum_{j=1}^{K}|\mathcal{D}_j|}
+    F_k(\theta).
+    \label{eq:bg_fl_objective}
+\end{equation}
+
+FedAvg updates the global model by averaging locally trained client weights:
+
+\begin{equation}
+    \theta_{t+1} =
+    \sum_{k \in \mathcal{P}_t}
+    \frac{n_k}{\sum_{j \in \mathcal{P}_t} n_j}
+    \theta_t^{(k)},
+    \label{eq:bg_fedavg}
+\end{equation}
+
+where $\mathcal{P}_t$ is the set of clients that participate in round $t$. This
+partial-participation formulation is important in edge deployments, where slow
+nodes, late joiners, and temporary disconnections are common.
+
+Existing FL deployments typically assume reliable network connectivity and
+ignore the communication cost of model updates. This thesis addresses both
+limitations through adaptive compression (\S\ref{sec:compression}) and
+pull-based model distribution (\S\ref{sec:fl_architecture}).
+
+\section{Differential Privacy}
+\label{sec:differential_privacy}
+
+Federated learning reduces raw-data movement, but model updates can still leak
+information through membership inference or model inversion attacks
+\cite{shokri2017membership, fredrikson2015model}. Differential privacy (DP)
+limits the influence of any single training sample on the released update
+\cite{dwork2006differential, dwork2014algorithmic}. A randomized mechanism
+$\mathcal{M}$ satisfies $(\varepsilon,\delta)$-DP if, for neighboring datasets
+$D$ and $D'$ differing in one sample and all output sets $S$:
+
+\begin{equation}
+    \Pr[\mathcal{M}(D) \in S]
+    \leq
+    e^\varepsilon \Pr[\mathcal{M}(D') \in S] + \delta .
+    \label{eq:bg_dp}
+\end{equation}
+
+In DP-SGD, per-sample gradients are clipped to a norm $C$ and perturbed with
+Gaussian noise:
+
+\begin{equation}
+    \tilde{g} =
+    \frac{1}{B}\sum_{i=1}^{B}
+    g_i \min\left(1,\frac{C}{\|g_i\|_2}\right)
+    +
+    \mathcal{N}(0,\sigma^2 C^2 I).
+    \label{eq:bg_dpsgd}
+\end{equation}
+
+The experimental chapters show why both parameters matter. Increasing
+$\sigma$ improves privacy but can damage the gradient signal; decreasing $C$
+limits sensitivity and also reduces the effective noise magnitude
+$\sigma \cdot C$. This interaction is central to the updated privacy benchmark
+in this thesis.
+
+\section{Root Cause Analysis and Adaptive Thresholding}
+\label{sec:bg_rca_thresholding}
+
+An anomaly detector answers whether a service looks abnormal; operators also
+need to know where the problem likely started. Graph-based RCA systems build
+service dependency graphs from distributed traces and rank likely causes using
+structural and temporal evidence \cite{li2018microrank, zhang2019rootcause,
+fu2020root}. PageRank-inspired scoring is useful because an upstream service can
+explain anomalies several hops downstream \cite{page1999pagerank, brin1998anatomy}.
+
+Thresholding remains a separate challenge. Static thresholds are simple, while
+EWMA and rolling statistics adapt to local drift. Reinforcement learning frames
+threshold selection as a sequential control problem in which an agent observes
+recent detection outcomes and adjusts the decision boundary. Q-learning estimates
+the long-term value of action $u$ in state $x$ through the Bellman update
+\cite{watkins1992qlearning, sutton2018reinforcement}:
+
+\begin{equation}
+    Q(x_t,u_t) \leftarrow Q(x_t,u_t) +
+    \eta \left[
+    R_{t+1} + \gamma \max_{u'}Q(x_{t+1},u') - Q(x_t,u_t)
+    \right].
+    \label{eq:bg_qlearning}
+\end{equation}
+
+The literature motivates Q-learning for adaptive thresholding
+\cite{liu2020rlthreshold}, but this thesis treats it empirically rather than
+assuming success. The final evaluation shows that a tabular Q-learning tuner can
+reduce final alert volume after extended interaction, but its early exploration
+and reward dynamics remain unstable enough to require redesign before production
+use.
+
+The literature motivates Q-learning for threshold adaptation, but most
+studies assume stationary reward signals and do not evaluate cold-start
+behavior in imbalanced anomaly streams. This thesis treats Q-learning
+thresholding as an empirical question (\S\ref{sec:eval_threshold}) and
+reports both the eventual stabilization and the cold-start failure as
+equally important outcomes.
+
+\section{Research Gap}
+\label{sec:bg_gap}
+
+Existing work usually studies the pieces of the monitoring problem separately.
+Deep anomaly detectors focus on detection accuracy, federated learning studies
+distributed optimization, differential privacy studies formal leakage bounds,
+and RCA systems study graph-based diagnosis. Operational monitoring, however,
+requires these mechanisms to interact. A detector with high offline AUC is
+insufficient if thresholds create noisy alerts, if training centralizes raw
+telemetry, or if alerts do not identify a likely service-level cause.
+
+The state of the art therefore provides strong building blocks but leaves an
+integration gap. LSTM-based detectors are effective for temporal telemetry, but
+many assume centralized training or offline threshold calibration. Federated
+learning avoids raw-data centralization, but FL studies often report
+optimization accuracy rather than alert quality, RCA usefulness, or
+communication feasibility. DP-SGD provides formal protection, but its practical
+utility depends on clipping, sampling, and convergence dynamics that are often
+hidden behind a single $\varepsilon$ value. Graph-based RCA improves diagnosis,
+but is usually evaluated separately from the detector that produces the
+anomalous service set.
+
+This thesis addresses that intersection by evaluating edge-local detection,
+FedAvg, DP-SGD, compression, causal RCA, and adaptive thresholding under one
+coherent architecture. Its contribution is not that each mechanism exists in
+isolation, but that their combined behavior is measured as a deployable
+monitoring pipeline, including the negative Q-learning cold-start result and
+the updated DP clipping sensitivity benchmark.
+
+The background surveyed here identifies the building blocks and their
+individual limitations. Chapter~\ref{ch:model_architecture} narrows the focus
+to the LSTM-Autoencoder, the specific detection architecture used by this
+framework, and defines its structure, training procedure, and the design
+choices that make it suitable for edge deployment.

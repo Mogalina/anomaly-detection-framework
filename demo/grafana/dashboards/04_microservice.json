@@ -1,0 +1,168 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "refresh": "1s",
+  "schemaVersion": 38,
+  "tags": [
+    "thesis",
+    "demo"
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "3. Microservice Deep Drilldown",
+  "uid": "dash-ms",
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Latency (ms) - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "ms_latency_ms{service=~\"$service\"}",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU (%) - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "ms_cpu_percent{service=~\"$service\"}",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory (MB) - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "ms_memory_mb{service=~\"$service\"}",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Active Connections - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "ms_active_connections{service=~\"$service\"}",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Network RX (KB/s) - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "ms_network_rx_kbps{service=~\"$service\"}",
+          "legendFormat": "RX {{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Network TX (KB/s) - $service",
+      "datasource": {
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "ms_network_tx_kbps{service=~\"$service\"}",
+          "legendFormat": "TX {{service}}"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": {
+          "uid": "Prometheus"
+        },
+        "query": "label_values(ms_latency_ms, service)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  }
+}

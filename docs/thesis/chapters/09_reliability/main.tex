@@ -1,0 +1,162 @@
+\chapter{Reliability and Fault Tolerance}
+\label{ch:reliability}
+
+\section{Reliability in Distributed Systems}
+\label{sec:reliability_overview}
+
+A monitoring and anomaly detection framework must itself be reliable. A system that
+crashes or produces stale results under load provides weaker guarantees than no
+monitoring at all, since it creates a false sense of operational visibility. In the
+context of this framework, reliability encompasses three concerns: the continuous
+availability of the anomaly detection pipeline at the edge, the durability of the
+federated learning coordination process, and the consistency of the persistent state
+(causal graphs, model checkpoints, anomaly scores) across crashes and restarts.
+
+Achieving reliability in a distributed setting requires deliberate design choices
+around failure detection, redundancy, state persistence, and graceful degradation.
+
+\section{CAP Theorem Implications}
+\label{sec:reliability_cap}
+
+The CAP theorem (introduced in Section~\ref{subsec:bg_cap}) constrains the guarantees
+any distributed system can simultaneously offer under a network partition. This
+framework prioritizes \emph{Availability} and \emph{Partition Tolerance} (AP),
+accepting the possibility of transient consistency divergence rather than halting
+operation during a partition event.
+
+This choice is motivated by the nature of the workload:
+
+\begin{itemize}
+    \item \textbf{Federated Learning Rounds}: Rounds are inherently asynchronous and
+    tolerant of partial participation. If a network partition isolates a subset of
+    edge nodes, the coordinator proceeds with the available participants rather than
+    blocking the round indefinitely. The resulting global model may be aggregated from
+    fewer nodes but remains useful and is corrected in subsequent rounds.
+
+    \item \textbf{Anomaly Detection at the Edge}: Operates on locally cached model
+    weights and does not require a live connection to the coordinator. Edge nodes
+    continue inference autonomously under partition, sacrificing global model
+    freshness for continued local detection capability.
+
+    \item \textbf{Root Cause Analysis}: Relies on the causal dependency graph, which
+    is updated incrementally. Temporary staleness in the graph---caused by missed
+    trace updates during a partition---is acceptable, as the graph converges once
+    connectivity is restored.
+\end{itemize}
+
+The coordinator itself does not enforce distributed consensus on FL round state,
+avoiding the latency and complexity of protocols such as Raft or Paxos \cite{ongaro2014raft, 
+lamport2001paxos}. Instead, round state is persisted durably before each commit, 
+enabling crash recovery without requiring agreement across replicas.
+
+\section{Single Points of Failure}
+\label{sec:reliability_spof}
+
+\subsection{Identification}
+\label{subsec:spof_identification}
+
+The following components represent potential single points of failure (SPoFs) in the
+framework:
+
+\begin{itemize}
+    \item \textbf{Central Coordinator}: The coordinator orchestrates all federated
+    learning rounds and serves as the authoritative source of the global model. If it
+    fails, FL rounds halt and edge nodes cannot receive updated weights until it
+    recovers.
+
+    \item \textbf{Trace Collector}: The component responsible for ingesting
+    distributed traces and updating the causal dependency graph. A failure here
+    prevents graph updates, causing root cause analysis to operate on a stale
+    topology.
+
+    \item \textbf{Persistent Storage}: The coordinator and edge nodes rely on a
+    durable database for storing model checkpoints, round state, and the causal graph.
+    Disk corruption or filesystem failures can result in loss of this state if
+    redundancy mechanisms are not in place.
+\end{itemize}
+
+\subsection{Mitigation Strategies}
+\label{subsec:spof_mitigation}
+
+Each identified SPoF is addressed through a corresponding mitigation:
+
+\begin{itemize}
+    \item \textbf{Coordinator Redundancy}: The coordinator is designed as a stateless
+    process whose authoritative state resides entirely in durable storage. This
+    enables an active-passive failover setup, where a standby coordinator instance can
+    take over by reading the last committed state from the database without requiring
+    state transfer between processes.
+
+    \item \textbf{Graceful Degradation at the Edge}: Edge nodes that cannot reach the
+    coordinator after a configurable timeout switch to standalone inference mode,
+    continuing anomaly detection with the last received global model. This ensures
+    that a coordinator outage does not propagate into a detection outage.
+
+    \item \textbf{Trace Collector Resilience}: Incoming trace data is buffered in a
+    durable message queue before being consumed by the graph update process. A
+    collector restart drains the buffer and catches up without data loss.
+\end{itemize}
+
+\section{Redundancy}
+\label{sec:reliability_redundancy}
+
+\subsection{Data Redundancy}
+\label{subsec:redundancy_data}
+
+The following persistent data assets are protected through redundancy mechanisms:
+
+\begin{itemize}
+    \item \textbf{Global Model Checkpoints}: The coordinator maintains a versioned
+    model registry, retaining the last $N$ global model snapshots. On recovery, the
+    most recent valid checkpoint is loaded and broadcast to edge nodes at the start of
+    the next round.
+
+    \item \textbf{Causal Dependency Graph}: The graph is persisted incrementally in
+    durable storage with Write-Ahead Logging (WAL) enabled. WAL mode ensures that 
+    in-progress writes do not corrupt the on-disk state during a crash, and readers 
+    are never blocked by concurrent writers.
+
+    \item \textbf{FL Round State}: Partial aggregation state (e.g., participating node list,
+    received gradient updates, round sequence number) is written to durable storage
+    before any round transition is committed. An incomplete round detected on restart
+    is discarded and re-initiated from the last committed global model.
+\end{itemize}
+
+\section{Fault Tolerance Mechanisms}
+\label{sec:fault_tolerance_mechanisms}
+
+\subsection{Crash Detection}
+\label{subsec:ft_crash_recovery}
+
+The coordinator maintains a heartbeat-based health monitoring channel with all
+registered edge nodes. Each node emits a periodic heartbeat over a lightweight UDP
+channel at a fixed interval. If the coordinator does not receive a heartbeat from 
+a node within a timeout window, the node is marked as offline and excluded from the 
+current FL round's aggregation. Excluded nodes are not penalized; they are automatically 
+re-enrolled when their heartbeat resumes.
+
+Edge nodes perform symmetric health monitoring of the coordinator. A failed
+coordinator connection triggers the standalone inference fallback described in
+Section~\ref{subsec:spof_mitigation}. Upon reconnection, the node re-registers with
+the coordinator and is enrolled in the next available FL round.
+
+\subsection{Edge Node Profiles}
+\label{subsec:ft_node_profiles}
+
+Edge nodes operate under one of two profiles that govern their fault tolerance
+behavior:
+
+\begin{itemize}
+    \item \textbf{Lightweight Profile}: Designed for resource-constrained devices
+    (e.g., IoT sensors, minimal containers). The node is fully stateless: it holds no
+    persistent local storage, joins an FL round, trains on local data, submits
+    gradients, and disconnects. On crash, it simply re-registers with the coordinator
+    at startup. Recovery is immediate but the node cannot resume an interrupted
+    training epoch.
+
+    \item \textbf{Standard Profile}: Designed for persistent edge appliances and
+    servers. The node caches the last received global model checkpoint in local 
+    durable storage. On crash recovery, it can resume an interrupted training epoch 
+    from the cached model without waiting for the coordinator to broadcast the next 
+    round, reducing recovery latency and avoiding a missed participation slot.
+\end{itemize}

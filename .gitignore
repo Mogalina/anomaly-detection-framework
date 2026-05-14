@@ -82,6 +82,15 @@ htmlcov/
 # Kubernetes
 *.secret.yaml
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+deploy/aws/adf-key.pem
+deploy/aws/adf-key.pub
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb

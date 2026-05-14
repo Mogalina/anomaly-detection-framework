@@ -646,10 +646,8 @@ class FederatedCoordinator:
         client_ids = []
         
         for client_id, update in updates.items():
-            params = []
-            for param in update['model_update'].values():
-                params.extend(param.flatten())
-            param_vectors.append(params)
+            client_params = np.concatenate([np.array(p).flatten() for p in update['model_update'].values()])
+            param_vectors.append(client_params)
             client_ids.append(client_id)
         
         param_vectors = np.array(param_vectors)

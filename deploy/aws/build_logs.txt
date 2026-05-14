@@ -1,0 +1,277 @@
+==> Building Docker images (linux/amd64)...
+docker build \
+	--platform linux/amd64 \
+	-t adf-coordinator:latest \
+	-f /home/mog/Downloads/anomaly-detection-framework/deploy/docker/Dockerfile.coordinator \
+	/home/mog/Downloads/anomaly-detection-framework
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.coordinator
+#1 transferring dockerfile: 1.20kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 74B done
+#3 DONE 0.0s
+
+#4 [ 1/10] FROM docker.io/library/python:3.11-slim
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 3.33kB done
+#5 DONE 0.0s
+
+#6 [ 8/10] COPY config/ ./config/
+#6 CACHED
+
+#7 [ 9/10] RUN mkdir -p logs checkpoints /etc/adf
+#7 CACHED
+
+#8 [ 5/10] COPY requirements-api.txt .
+#8 CACHED
+
+#9 [ 4/10] COPY requirements.txt .
+#9 CACHED
+
+#10 [ 7/10] COPY src/ ./src/
+#10 CACHED
+
+#11 [ 6/10] RUN pip install --no-cache-dir -r requirements.txt -r requirements-api.txt
+#11 CACHED
+
+#12 [ 2/10] WORKDIR /app
+#12 CACHED
+
+#13 [ 3/10] RUN apt-get update && apt-get install -y     gcc     g++     postgresql-client     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [10/10] COPY config/config-aws.yaml /etc/adf/config.yaml
+#14 CACHED
+
+#15 exporting to image
+#15 exporting layers done
+#15 writing image sha256:a2e21a688691017252ab32134a460c3f9500bacd55f4ddd835290dbc8194dafe done
+#15 naming to docker.io/library/adf-coordinator:latest 0.0s done
+#15 DONE 0.0s
+docker build \
+	--platform linux/amd64 \
+	-t adf-edge:latest \
+	-f /home/mog/Downloads/anomaly-detection-framework/deploy/docker/Dockerfile.edge \
+	/home/mog/Downloads/anomaly-detection-framework
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.edge
+#1 transferring dockerfile: 805B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 74B done
+#3 DONE 0.0s
+
+#4 [1/8] FROM docker.io/library/python:3.11-slim
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 2.14kB done
+#5 DONE 0.0s
+
+#6 [3/8] RUN apt-get update && apt-get install -y     gcc     g++     && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [5/8] RUN pip install --no-cache-dir -r requirements.txt
+#7 CACHED
+
+#8 [4/8] COPY requirements.txt .
+#8 CACHED
+
+#9 [6/8] COPY src/ ./src/
+#9 CACHED
+
+#10 [7/8] COPY config/ ./config/
+#10 CACHED
+
+#11 [2/8] WORKDIR /app
+#11 CACHED
+
+#12 [8/8] RUN mkdir -p logs
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 writing image sha256:8adeffbea28761f035a4d106b65bba0efbba791c057e6a558ee1f4d088ceae7f done
+#13 naming to docker.io/library/adf-edge:latest 0.0s done
+#13 DONE 0.0s
+docker build \
+	--platform linux/amd64 \
+	-t adf-edge-lightweight:latest \
+	-f /home/mog/Downloads/anomaly-detection-framework/deploy/docker/Dockerfile.edge-lightweight \
+	/home/mog/Downloads/anomaly-detection-framework
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.edge-lightweight
+#1 transferring dockerfile: 861B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 74B done
+#3 DONE 0.0s
+
+#4 [1/8] FROM docker.io/library/python:3.11-slim
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 2.48kB done
+#5 DONE 0.0s
+
+#6 [2/8] WORKDIR /app
+#6 CACHED
+
+#7 [4/8] COPY requirements-edge-lightweight.txt .
+#7 CACHED
+
+#8 [5/8] RUN pip install --no-cache-dir -r requirements-edge-lightweight.txt
+#8 CACHED
+
+#9 [6/8] COPY src/ ./src/
+#9 CACHED
+
+#10 [7/8] COPY config/ ./config/
+#10 CACHED
+
+#11 [3/8] RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
+#11 CACHED
+
+#12 [8/8] RUN mkdir -p logs
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 writing image sha256:58858ad7267dfe817dab829e470eec09f794a1b2491c95d85bb4d07991d77d53 done
+#13 naming to docker.io/library/adf-edge-lightweight:latest done
+#13 DONE 0.0s
+==> Docker images built successfully
+==> Authenticating to ECR in eu-central-1...
+aws ecr get-login-password --region eu-central-1 \
+	| docker login --username AWS --password-stdin 888577062915.dkr.ecr.eu-central-1.amazonaws.com
+
+WARNING! Your credentials are stored unencrypted in '/home/mog/.docker/config.json'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+Login Succeeded
+==> Tagging and pushing images...
+docker tag adf-coordinator:latest \
+	888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-coordinator:latest
+docker push 888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-coordinator:latest
+The push refers to repository [888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-coordinator]
+c3485f2c2378: Preparing
+63802eba6368: Preparing
+54f69d0d9b51: Preparing
+efbd51d8e73b: Preparing
+6562fddb0e17: Preparing
+ac384cc8f1af: Preparing
+8d58b16b58ab: Preparing
+23f3f33b7bb5: Preparing
+7705ab6174ff: Preparing
+8347a0657a00: Preparing
+34b037810a00: Preparing
+188695d9eb1d: Preparing
+ac384cc8f1af: Waiting
+188c9b34dfbe: Preparing
+8d58b16b58ab: Waiting
+23f3f33b7bb5: Waiting
+7705ab6174ff: Waiting
+8347a0657a00: Waiting
+34b037810a00: Waiting
+188695d9eb1d: Waiting
+188c9b34dfbe: Waiting
+6562fddb0e17: Layer already exists
+54f69d0d9b51: Layer already exists
+efbd51d8e73b: Layer already exists
+c3485f2c2378: Layer already exists
+63802eba6368: Layer already exists
+ac384cc8f1af: Layer already exists
+8d58b16b58ab: Layer already exists
+23f3f33b7bb5: Layer already exists
+8347a0657a00: Layer already exists
+7705ab6174ff: Layer already exists
+188695d9eb1d: Layer already exists
+188c9b34dfbe: Layer already exists
+34b037810a00: Layer already exists
+latest: digest: sha256:35d203aed6aaad656b2f22fa6b8c4dbba78e516badddf7ff45a26eecd0b9adc5 size: 3038
+docker tag adf-edge:latest \
+	888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge:latest
+docker push 888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge:latest
+The push refers to repository [888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge]
+a190662280a2: Preparing
+75faad2993ec: Preparing
+16b097311619: Preparing
+2c07f5cb4c02: Preparing
+28efe9057c92: Preparing
+5703ff333bee: Preparing
+7705ab6174ff: Preparing
+8347a0657a00: Preparing
+34b037810a00: Preparing
+188695d9eb1d: Preparing
+188c9b34dfbe: Preparing
+7705ab6174ff: Waiting
+8347a0657a00: Waiting
+34b037810a00: Waiting
+188695d9eb1d: Waiting
+188c9b34dfbe: Waiting
+5703ff333bee: Waiting
+75faad2993ec: Layer already exists
+a190662280a2: Layer already exists
+28efe9057c92: Layer already exists
+16b097311619: Layer already exists
+2c07f5cb4c02: Layer already exists
+7705ab6174ff: Layer already exists
+5703ff333bee: Layer already exists
+8347a0657a00: Layer already exists
+34b037810a00: Layer already exists
+188695d9eb1d: Layer already exists
+188c9b34dfbe: Layer already exists
+latest: digest: sha256:085accd4ba1b8cc75641cae72841af1c5162cbbad3a2c5dfcfc461c2879ea766 size: 2622
+docker tag adf-edge-lightweight:latest \
+	888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge-lightweight:latest
+docker push 888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge-lightweight:latest
+The push refers to repository [888577062915.dkr.ecr.eu-central-1.amazonaws.com/adf/adf-edge-lightweight]
+8e023a847413: Preparing
+f09c7804ba23: Preparing
+b666a618948d: Preparing
+81d7a08302bb: Preparing
+be2d33f989a9: Preparing
+d14fdad793e4: Preparing
+7705ab6174ff: Preparing
+8347a0657a00: Preparing
+34b037810a00: Preparing
+188695d9eb1d: Preparing
+188c9b34dfbe: Preparing
+d14fdad793e4: Waiting
+188695d9eb1d: Waiting
+188c9b34dfbe: Waiting
+7705ab6174ff: Waiting
+8347a0657a00: Waiting
+34b037810a00: Waiting
+b666a618948d: Layer already exists
+be2d33f989a9: Layer already exists
+81d7a08302bb: Layer already exists
+f09c7804ba23: Layer already exists
+8e023a847413: Layer already exists
+d14fdad793e4: Layer already exists
+8347a0657a00: Layer already exists
+188695d9eb1d: Layer already exists
+34b037810a00: Layer already exists
+7705ab6174ff: Layer already exists
+188c9b34dfbe: Layer already exists
+latest: digest: sha256:63bbbb332aae23583eb6b05efa6036347e4156d91392fa0b0427f451529c4470 size: 2622
+==> Images pushed to ECR

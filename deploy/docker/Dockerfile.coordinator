@@ -1,4 +1,8 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
+
+LABEL maintainer="ADF Research Team"
+LABEL description="Anomaly Detection Framework — Central Coordinator"
+LABEL version="1.0.0"
 
 WORKDIR /app
 
@@ -11,9 +15,10 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements
 COPY requirements.txt .
+COPY requirements-api.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-api.txt
 
 # Copy source code
 COPY src/ ./src/
@@ -22,11 +27,14 @@ COPY config/ ./config/
 # Set Python path
 ENV PYTHONPATH=/app/src
 
-# Create logs and checkpoints directories
-RUN mkdir -p logs checkpoints
+# Create logs, checkpoints, and config directories
+RUN mkdir -p logs checkpoints /etc/adf
+
+# Copy AWS config overlay if present
+COPY config/config-aws.yaml /etc/adf/config.yaml
 
 # Expose gRPC port and API port
-EXPOSE 50051 8080
+EXPOSE 50051 8080 9090
 
 # Health check via gRPC ping
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
@@ -34,3 +42,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # Run coordinator
 CMD ["python", "-m", "federated.run_coordinator"]
+

@@ -1,19 +1,25 @@
 from .logger import setup_logger, get_logger
 from .metrics import MetricsExporter
 from .config import load_config, get_config
-from .preprocessing import (
-    sliding_window,
-    normalize_data,
-    detect_outliers,
-    fill_missing_values
-)
+try:
+    from .preprocessing import (
+        sliding_window,
+        normalize_data,
+        detect_outliers,
+        fill_missing_values
+    )
+except ImportError:
+    pass
 from .serialization import save_model, load_model
 from .compression import (
     CompressionType,
     pack_state_dict,
     unpack_state_dict
 )
-from .db import get_session, init_db
+try:
+    from .db import get_session, init_db
+except ImportError:
+    pass
 from .cache import (
     cache_client_update,
     get_client_update,

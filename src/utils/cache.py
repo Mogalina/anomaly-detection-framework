@@ -21,11 +21,14 @@ logger = get_logger(__name__)
 _redis_client = None
 _fallback_store: Dict[str, str] = {}
 _redis_available = False
+_redis_checked = False
 
 
 def _try_connect() -> None:
     """Attempt to connect to Redis and fall back to in-memory cache if unavailable."""
-    global _redis_client, _redis_available
+    global _redis_client, _redis_available, _redis_checked
+    
+    _redis_checked = True
 
     try:
         import redis as _redis_lib
@@ -49,16 +52,16 @@ def _try_connect() -> None:
         logger.warning(f"Redis not available, falling back to in-memory cache: {exc}")
 
 
-def get_redis() -> Optional[Redis]:
+def get_redis() -> Optional["redis.Redis"]:
     """
     Return the Redis client if available.
 
     Returns:
         The Redis client if available, otherwise None
     """
-    global _redis_client
+    global _redis_client, _redis_checked
 
-    if _redis_client is None:
+    if not _redis_checked:
         _try_connect()
 
     return _redis_client if _redis_available else None

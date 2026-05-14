@@ -20,13 +20,15 @@ _SessionLocal = None
 
 def _get_database_url() -> str:
     """
-    Build a PostgreSQL connection URL from configuration settings.
-
-    Returns:
-        The connection URL as a string
+    Build a connection URL from configuration settings.
     """
     config = get_config()
     
+    db_type = config.get('database.type', 'postgres')
+    if db_type == 'sqlite':
+        db_path = config.get('database.sqlite.path', '/app/checkpoints/coordinator.db')
+        return f"sqlite:///{db_path}"
+        
     postgres_config = config.get('database.postgres', {})
     host = postgres_config.get('host', 'localhost')
     port = postgres_config.get('port', 5432)
@@ -44,14 +46,19 @@ def get_engine():
     if _engine is None:
         url = _get_database_url()
         
-        _engine = create_engine(
-            url,
-            pool_size=postgres_config.get('pool_size', 10),
-            max_overflow=postgres_config.get('max_overflow', 20),
-            pool_pre_ping=True,
-        )
+        config = get_config()
+        db_type = config.get('database.type', 'postgres')
+        
+        engine_kwargs = {'pool_pre_ping': True}
+        if db_type == 'postgres':
+            postgres_config = config.get('database.postgres', {})
+            engine_kwargs['pool_size'] = postgres_config.get('pool_size', 10)
+            engine_kwargs['max_overflow'] = postgres_config.get('max_overflow', 20)
+            
+        _engine = create_engine(url, **engine_kwargs)
 
-        logger.debug(f"Database engine created: {url.split('@')[1]}")
+        log_url = url.split('@')[1] if '@' in url else url
+        logger.debug(f"Database engine created: {log_url}")
     
     return _engine
 
