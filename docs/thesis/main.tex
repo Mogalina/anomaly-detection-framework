@@ -131,19 +131,21 @@ Modern distributed systems, composed of microservices and heterogeneous
 components, are increasingly complex and prone to performance anomalies that can
 compromise reliability and service quality. This thesis presents a comprehensive
 anomaly detection framework designed for large-scale distributed systems,
-integrating real-time edge detection, federated learning for collaborative model
-training, causal graph-based root cause analysis, and adaptive,
-performance-aware thresholding. By combining localized anomaly detection at the
-edge with global model aggregation via the FedAvg algorithm, the framework
-enhances detection accuracy while preserving data privacy through Differential
-Privacy. The incorporation of causal graphs enables precise identification of
-root causes, facilitating rapid remediation and reducing alert latency. Adaptive
-thresholding powered by Q-learning dynamically adjusts detection sensitivity
-according to system performance metrics, improving responsiveness under varying
-workloads. Experimental evaluation demonstrates that the proposed approach
-achieves high detection fidelity, low false-positive rates, and scalable
-performance across distributed architectures, offering a robust solution for
-proactive system reliability management.
+integrating real-time edge detection via an LSTM-Autoencoder, federated learning
+for collaborative model training without centralizing raw telemetry,
+causal graph-based root cause analysis, and adaptive Q-learning thresholding.
+By combining localized anomaly detection at the edge with global model
+aggregation via the FedAvg algorithm, the framework enhances detection accuracy
+while preserving data privacy through Differential Privacy (DP-SGD).
+Experimental evaluation on the Server Machine Dataset (SMD), Train-Ticket, and
+Alibaba-derived topologies demonstrates that the federated LSTM-AE achieves
+competitive detection fidelity, the DP mechanism exposes a sharp
+privacy--utility phase transition governed by clipping norm, and causal RCA
+provides operationally useful root-cause rankings on small topologies. The
+Q-learning threshold controller reduces final alert volume but exhibits
+cold-start instability, motivating future reward-shaping improvements. The
+thesis reports both positive results and identified limitations to guide future
+work.
 \end{abstract}
 
 \clearpage
@@ -157,17 +159,12 @@ proactive system reliability management.
 
 % Chapters
 \include{chapters/01_introduction/main}
-\include{chapters/02_background/main}
-\include{chapters/03_edge_computing/main}
-\include{chapters/04_model_architecture/main}
-\include{chapters/05_federated_learning/main}
-\include{chapters/06_communication/main}
-\include{chapters/07_root_cause_analysis/main}
-\include{chapters/08_adaptive_thresholding/main}
-\include{chapters/09_reliability/main}
-\include{chapters/10_system_design/main}
-\include{chapters/11_evaluation/main}
-\include{chapters/12_conclusion/main}
+\include{chapters/02_background_and_related_work/main}
+\include{chapters/03_lstm_autoencoder_model_architecture/main}
+\include{chapters/04_framework_methodology/main}
+\include{chapters/05_system_design_and_implementation/main}
+\include{chapters/06_experimental_evaluation/main}
+\include{chapters/07_conclusion_and_future_work/main}
 
 \printbibliography[heading=bibintoc, title={References}]
 

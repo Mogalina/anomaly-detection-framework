@@ -25,7 +25,17 @@ import importlib.util
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-def _import_from_file(name, path):
+def _import_from_file(name: str, path: str):
+    """
+    Dynamically imports a Python module from a file path.
+    
+    Args:
+        name: Name to assign to the loaded module.
+        path: Absolute path to the .py file.
+        
+    Returns:
+        The loaded module object.
+    """
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
     return mod
@@ -50,7 +60,19 @@ NUM_TEST      = 1000
 
 
 def _train(model, data, epochs=EPOCHS, lr=LR, batch_size=BATCH_SIZE):
-    """Train model on data — matches sweep methodology exactly."""
+    """
+    Trains the provided LSTM-AE model using the specified hyperparameters.
+    
+    Args:
+        model: The LSTMAnomalyDetector instance to train.
+        data: Training dataset as a numpy array.
+        epochs: Number of training epochs.
+        lr: Adam optimizer learning rate.
+        batch_size: DataLoader batch size.
+        
+    Returns:
+        List of average loss per epoch.
+    """
     opt  = torch.optim.Adam(model.parameters(), lr=lr)
     crit = torch.nn.MSELoss()
     x    = torch.FloatTensor(data)
@@ -68,8 +90,20 @@ def _train(model, data, epochs=EPOCHS, lr=LR, batch_size=BATCH_SIZE):
     return losses
 
 
-def _evaluate(model, test_normal, test_anomalous, y_true):
-    """Evaluate with 95th-percentile threshold — matches sweep methodology."""
+def _evaluate_model(model: LSTMAnomalyDetector, test_normal: np.ndarray, test_anomalous: np.ndarray, y_true: np.ndarray, threshold_pct: int = 95) -> dict:
+    """
+    Evaluates the model on the test dataset using a dynamic percentile threshold.
+    
+    Args:
+        model: The trained LSTMAnomalyDetector model.
+        test_normal: Normal test dataset sequence.
+        test_anomalous: Anomalous test dataset sequence.
+        y_true: Ground truth binary labels.
+        threshold_pct: Percentile of normal data reconstruction errors to use as threshold.
+        
+    Returns:
+        Dictionary containing metric scores: precision, recall, f1, auc_roc, auc_pr.
+    """
     model.eval()
     all_data = np.concatenate([test_normal, test_anomalous], axis=0)
     x = torch.FloatTensor(all_data)

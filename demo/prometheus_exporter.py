@@ -1,3 +1,10 @@
+"""
+Federated Anomaly Detection Prometheus Exporter
+===============================================
+This module acts as a real-time simulator and telemetry exporter for the framework.
+It streams the SMD dataset through a pre-trained LSTM-AE model, injects simulated
+anomalies, and computes authentic Root Cause Analysis (RCA) traces using the causal graph.
+"""
 import os
 import sys
 import time
@@ -9,7 +16,18 @@ import random
 from prometheus_client import start_http_server, Gauge, Counter, Info
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-def _import_from_file(module_name, file_path):
+
+def _import_from_file(module_name: str, file_path: str):
+    """
+    Dynamically imports a module from a specific file path.
+    
+    Args:
+        module_name: The name to assign to the loaded module.
+        file_path: The absolute path to the .py file.
+        
+    Returns:
+        The loaded Python module.
+    """
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -69,8 +87,19 @@ DEPENDENCIES = {
     'ts-ticketinfo-service': ['ts-price-service', 'ts-train-service']
 }
 
-def get_downstream_services(service):
-    # simple BFS to find affected downstream services
+def get_downstream_services(service: str) -> list:
+    """
+    Find all downstream services affected by a given root cause service.
+    
+    Uses a simple Breadth-First Search (BFS) traversal of the hardcoded
+    Train-Ticket dependency map to locate cascading failures.
+    
+    Args:
+        service: The name of the origin service.
+        
+    Returns:
+        List of affected downstream service names.
+    """
     affected = set()
     queue = [service]
     while queue:
@@ -81,7 +110,17 @@ def get_downstream_services(service):
                 queue.append(parent)
     return list(affected)
 
-def init_demo():
+def init_demo() -> tuple:
+    """
+    Initialize the deep learning models and datasets for the demo.
+    
+    Loads the Server Machine Dataset (SMD) and instantiates the pre-trained
+    LSTM-Autoencoder from saved checkpoints. Computes the dynamic 95th-percentile
+    anomaly threshold.
+    
+    Returns:
+        Tuple containing (model, test_windows, test_labels, threshold).
+    """
     _, test_normal, test_anomalous, ordered_test_windows, ordered_test_labels = load_smd_dataset(
         seq_len=50, max_train=0, max_test=1000
     )
@@ -104,7 +143,15 @@ def init_demo():
     threshold_gauge.set(threshold)
     return model, ordered_test_windows, ordered_test_labels, threshold
 
-def run_exporter():
+def run_exporter() -> None:
+    """
+    Main execution loop for the Prometheus Exporter.
+    
+    Starts a local HTTP server on port 8000. Continuously feeds data into the
+    LSTM-AE model, triggers alerts, computes RCA probabilities, and emits
+    comprehensive RED (Rate, Errors, Duration) and USE (Utilization, Saturation,
+    Errors) telemetry for all microservices.
+    """
     start_http_server(8000)
     print("Prometheus Exporter running on http://localhost:8000/metrics")
     

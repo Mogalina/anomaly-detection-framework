@@ -1,10 +1,28 @@
+"""
+Thesis Experiment Logger
+========================
+Provides structured JSON logging for all benchmark scripts to ensure reproducibility
+and easy parsing of empirical results for the thesis manuscript.
+"""
 import logging
 import json
 import os
 from datetime import datetime
 
 class ThesisLogger:
-    def __init__(self, experiment_name):
+    """
+    Handles file-based JSON logging for thesis empirical evaluations.
+    
+    Creates timestamped log files in the tests/logs directory and ensures all
+    recorded metrics are serialized as JSON strings for downstream processing.
+    """
+    def __init__(self, experiment_name: str):
+        """
+        Initializes the logger.
+        
+        Args:
+            experiment_name: Name of the current benchmark or experiment.
+        """
         log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
         os.makedirs(log_dir, exist_ok=True)
         
@@ -21,8 +39,14 @@ class ThesisLogger:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-    def log_metric(self, step, metrics_dict):
-        """Logs a dictionary of metrics as a JSON string."""
+    def log_metric(self, step: int, metrics_dict: dict) -> None:
+        """
+        Logs a dictionary of metrics as a JSON string.
+        
+        Args:
+            step: The current training epoch, evaluation round, or sequence step.
+            metrics_dict: Dictionary containing the key-value metric pairs.
+        """
         record = {
             "timestamp": datetime.now().isoformat(),
             "step": step,

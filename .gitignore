@@ -50,7 +50,6 @@ data/
 models/
 checkpoints/
 *.pth
-*.pt
 *.ckpt
 
 # Results
