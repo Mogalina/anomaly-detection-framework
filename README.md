@@ -90,7 +90,7 @@ This framework demonstrates the viability of fully decentralizing anomaly detect
 ## Running the Demonstration
 To facilitate peer review, a fully self-contained Dockerized demonstration is provided. It includes a live Prometheus exporter executing real-time inference on the SMD dataset and a comprehensive 4-dashboard Grafana SRE suite. 
 
-Please refer to the [Demonstration Guide](./demo_guide.md) or initialize it directly:
+Please refer to the [Demonstration Guide](./demo/demo_guide.md) or initialize it directly:
 
 ```bash
 cd demo
