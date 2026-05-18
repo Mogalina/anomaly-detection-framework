@@ -55,11 +55,12 @@ flowchart TD
 ```
 
 ## Theoretical Foundation
+
 The framework relies on the integration of the following domains:
+
 * **Time-Series Forecasting**: Unsupervised reconstruction of 38-dimensional telemetry using an LSTM-Autoencoder.
-* **Federated Optimization**: The global model objective is minimized using the `FedAvg` algorithm over $K$ clients:
-  $$ w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n} w_{t+1}^k $$
-* **Differential Privacy**: Client updates are bounded by an $L_2$ clipping norm $C$ and obscured via Gaussian noise $\mathcal{N}(0, \sigma^2 C^2)$.
+* **Federated Optimization**: The global model objective is minimized using the FedAvg algorithm over K clients.
+* **Differential Privacy**: Client updates are bounded by an L2 clipping norm C and obscured via Gaussian noise N(0, σ²C²).
 * **Causal Tracing**: Utilizing Breadth-First Search (BFS) and PageRank over directed acyclic dependency graphs to calculate impact probability scores.
 
 ## Empirical Results
