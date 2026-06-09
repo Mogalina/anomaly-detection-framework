@@ -1,6 +1,17 @@
 \chapter{System Design and Implementation}
 \label{ch:system_design}
 \label{ch:reliability}
+\section{Architectural Design Process}
+\label{sec:design_process}
+
+The development of the distributed anomaly detection framework followed a structured systems engineering lifecycle, transitioning from abstract requirements to a validated deployment. This process was organized into five sequential phases:
+\begin{enumerate}
+    \item \textbf{Requirements Analysis}: Defining the core functional goals (low-latency edge inference, adaptive thresholding, causal root-cause analysis) and non-functional constraints (differential privacy budget, network bandwidth conservation, and fault-tolerance bounds).
+    \item \textbf{System Architecture Design}: Partitioning the system into a hub-and-spoke topology, separating the local telemetry loops of the edge nodes from the global coordination and trace aggregation responsibilities of the central coordinator.
+    \item \textbf{Component Decomposition}: Detailing the specifications of individual sub-modules, such as the LSTM-AE tensor shapes, the Q-learning state-action tables, the NetworkX graph structures, and the Zstandard compression thresholds.
+    \item \textbf{Implementation}: Writing modular, type-hinted Python code using PyTorch, gRPC, and SQLite, ensuring strict separation of concerns across service layers.
+    \item \textbf{Validation and Evaluation}: Executing automated test suites to verify component behavior under normal and degraded conditions, followed by empirical benchmarking on multi-node topologies.
+\end{enumerate}
 
 \section{End-to-End Architecture}
 \label{sec:design_architecture}
@@ -277,9 +288,45 @@ efficient binary transport. SQLite with WAL offers durable state without
 requiring a separate database cluster, which is appropriate for the
 single-coordinator system evaluated in this thesis.
 
-The system design described in this chapter translates the algorithmic
-methodology of Chapter~\ref{ch:framework} into deployable components with
-explicit failure boundaries, persistence contracts, and configuration surfaces.
-Chapter~\ref{ch:evaluation} now evaluates this implementation empirically:
-detection accuracy, privacy--utility trade-offs, communication overhead, RCA
-quality, adaptive thresholding behavior, and coordinator scalability.
+\section{Software Validation Strategy}
+\label{sec:software_validation}
+
+To ensure the reliability, correctness, and resilience of the distributed anomaly detection framework, the implementation was validated through a multi-tiered testing strategy. Given the complex interplay between deep learning inference, reinforcement learning threshold tuning, and distributed coordination, testing is structured into modular layers: functional unit testing, end-to-end integration testing, and fault tolerance verification. The validation suite uses \texttt{pytest} as the test execution runner, with \texttt{unittest.mock} to isolate network services, persistent storage layers, and external infrastructure dependencies during automated testing.
+
+\subsection{Functional Testing}
+\label{subsec:functional_testing}
+
+Functional testing focuses on verifying the deterministic behavior, mathematical logic, and input-output contracts of individual system components in isolation. This tier guarantees that core algorithms operate correctly before they are composed into distributed pipelines:
+
+\begin{itemize}
+    \item \textbf{LSTM-AE Model}: Unit tests verify the structural integrity of the autoencoder network by checking that tensor shapes remain consistent across the encoder, decoder, and output linear layers. They assert that reconstruction errors decrease monotonically during isolated gradient descent steps and check that the encoder's latent dimension maps correctly to custom configurations.
+    \item \textbf{Edge Detector}: Validates that telemetry data is correctly ingested into the circular buffer, verifying that inputs are automatically padded or truncated when input feature counts do not match the expected model input size. Tests also confirm that threshold alerts are correctly classified by severity (Low, Medium, High, Critical) and that consecutive anomaly counters increment and reset according to normal observations.
+    \item \textbf{Threshold Tuner}: Verifies the Q-learning logic by asserting that the continuous state space (comprising the current threshold, false-positive rate, false-negative rate, and SLO violation rate) is discretized into discrete bins. Unit tests validate that reward signals are correctly computed based on confusion matrix updates, that exploration decays according to the configured epsilon schedule, and that exploitation behavior is preserved when exploration is disabled.
+    \item \textbf{Federated Client and Aggregator}: Asserts that the local training process updates the local weights, applies gradient clipping to bound sensitivity, and introduces calibrated Gaussian noise for differential privacy. Compression tests verify the adaptive compression selection logic, confirming that Zstandard compression is used under low CPU utilization, while LZ4 is preferred under high CPU load. They also verify that the sparsification logic (Top-K) preserves dense tensor reconstruction after serialization.
+\end{itemize}
+
+\subsection{Integration Testing}
+\label{subsec:integration_testing}
+
+Integration testing evaluates the structural interactions, communication protocols, and telemetry pipelines when multiple modules collaborate. These tests simulate real-world workflows without mocking the framework's internal API boundaries:
+
+\begin{itemize}
+    \item \textbf{Telemetry-to-Detection Pipeline}: Verifies the continuous ingestion of telemetry streams. Telemetry points are preprocessed, structured into overlapping sliding windows, and fed into the LSTM-AE. The resulting reconstruction error is then compared against the active threshold to trigger alerts, verifying that the data remains consistent and unmutated throughout the pipeline.
+    \item \textbf{Detection-to-RCA Pipeline}: Simulates trace collection and anomaly propagation. When multiple edge detectors report anomalies concurrently, the pipeline batches these alerts, queries the causal dependency graph, and applies PageRank propagation. The test verifies that anomalous services are propagated through the dependency graph and that the RCA engine produces consistent ranked candidates.
+    \item \textbf{Federated Round Execution}: Orchestrates a complete federated learning epoch. Multiple simulated client nodes train local models on distinct telemetry partitions, compress their weight updates, and transmit them via gRPC. The coordinator aggregates these updates using the FedAvg algorithm and loads the resulting weights back into the global model, verifying that the aggregate updates match the expected mathematical weighted average.
+    \item \textbf{SLO-Driven Threshold Tuning Loop}: Integrates the SLO Tracker with the Threshold Tuner. The test verifies that latency spikes or error rate violations are successfully captured, mapped to concurrent service anomalies, and translated into negative rewards for the reinforcement learning tuner, which subsequently increases or decreases the detection threshold to balance precision and recall.
+\end{itemize}
+
+\subsection{Fault Tolerance Testing}
+\label{subsec:fault_tolerance_testing}
+
+Fault tolerance testing validates that the system degrades gracefully under network degradation, partial client dropouts, or hostile security scenarios. These tests evaluate the resilience of the coordinator and edge agents:
+
+\begin{itemize}
+    \item \textbf{Node Dropout and Quorum Handling}: Simulates federated learning rounds where a subset of clients fails to submit their model updates. The tests assert that the coordinator successfully aggregates updates when the participant count meets the minimum quorum threshold, and aborts the round, keeping the global model unchanged, when participation falls below the quorum.
+    \item \textbf{Stale Update Filtering}: Validates that the coordinator rejects model updates submitted by delayed clients whose local training round lags behind the current global round by more than the configured staleness tolerance. This prevents slow nodes from introducing obsolete gradients that would cause model divergence.
+    \item \textbf{Poisoning and Outlier Detection}: Poisoned model updates (e.g., extreme outlier weights from compromised nodes) are simulated and evaluated using the Z-score filtering mechanism, verifying that the coordinator successfully isolates anomalous gradients before aggregation.
+    \item \textbf{Malformed Inputs and Resilience}: Asserts that the system remains stable when encountering invalid configurations, missing services in trace spans, or uninitialized Q-tables. The causal graph and RCA engines are verified to return empty result sets rather than throwing fatal exceptions, while the threshold tuner automatically initializes missing service states upon receiving their first telemetry feedback.
+\end{itemize}
+
+The system design and software validation strategy described in this chapter translate the algorithmic methodology of Chapter~\ref{ch:framework} into deployable components with explicit failure boundaries, persistence contracts, testing protocols, and configuration surfaces. Chapter~\ref{ch:evaluation} now evaluates this implementation empirically: detection accuracy, privacy--utility trade-offs, communication overhead, RCA quality, adaptive thresholding behavior, and coordinator scalability.
