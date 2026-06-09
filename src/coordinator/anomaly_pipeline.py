@@ -135,7 +135,8 @@ class AnomalyPipeline:
         self,
         service: str,
         was_detected: bool,
-        was_true_anomaly: bool
+        was_true_anomaly: bool,
+        score: Optional[float] = None
     ) -> None:
         """
         Provide feedback for threshold learning.
@@ -144,7 +145,16 @@ class AnomalyPipeline:
             service: Service name
             was_detected: Whether anomaly was detected
             was_true_anomaly: Whether it was actually an anomaly
+            score: Optional raw anomaly score; if not provided, the latest score
+                is retrieved from the edge detector.
         """
+        # Determine score
+        if score is None:
+            if service in self.edge_detectors and self.edge_detectors[service].anomaly_scores:
+                score = float(self.edge_detectors[service].anomaly_scores[-1])
+            else:
+                score = 0.0
+
         # Check SLO status
         slo_status = self.slo_tracker.check_slo_violations(service)
         slo_violated = len(slo_status.get('violations', [])) > 0
@@ -152,6 +162,7 @@ class AnomalyPipeline:
         # Update threshold tuner
         self.threshold_tuner.update_feedback(
             service,
+            score,
             was_detected,
             was_true_anomaly,
             slo_violated
