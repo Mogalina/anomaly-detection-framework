@@ -103,6 +103,8 @@ deploy/aws/adf-key.pub
 tmp/
 temp/
 *.tmp
+*.pid
+demo/*.pid
 
 # LaTeX
 *.aux
